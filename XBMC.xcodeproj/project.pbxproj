@@ -9726,7 +9726,7 @@
 					"$(SRCROOT)/lib/SlingboxLib",
 					"$(SRCROOT)/xbmc/interfaces/http-api",
 					"$(SRCROOT)/xbmc/interfaces/json-rpc",
-					"\"$(SRCROOT)/lib/libTcpSocket\"",
+					"$(SRCROOT)/lib/libTcpSocket",
 				);
 				LINK_WITH_STANDARD_LIBRARIES = YES;
 				OTHER_LDFLAGS = (
@@ -9826,7 +9826,7 @@
 					"$(SRCROOT)/lib/SlingboxLib",
 					"$(SRCROOT)/xbmc/interfaces/http-api",
 					"$(SRCROOT)/xbmc/interfaces/json-rpc",
-					"\"$(SRCROOT)/lib/libTcpSocket\"",
+					"$(SRCROOT)/lib/libTcpSocket",
 				);
 				LINK_WITH_STANDARD_LIBRARIES = YES;
 				OTHER_LDFLAGS = (
@@ -9985,7 +9985,7 @@
 					"$(SRCROOT)/xbmc/interfaces/http-api",
 					"$(SRCROOT)/xbmc/interfaces/json-rpc",
 					"$(SRCROOT)/lib/SlingboxLib",
-					"\"$(SRCROOT)/lib/libTcpSocket\"",
+					"$(SRCROOT)/lib/libTcpSocket",
 				);
 				LINK_WITH_STANDARD_LIBRARIES = YES;
 				OTHER_LDFLAGS = (
@@ -10086,7 +10086,7 @@
 					"$(SRCROOT)/xbmc/interfaces/http-api",
 					"$(SRCROOT)/xbmc/interfaces/json-rpc",
 					"$(SRCROOT)/lib/SlingboxLib",
-					"\"$(SRCROOT)/lib/libTcpSocket\"",
+					"$(SRCROOT)/lib/libTcpSocket",
 				);
 				LINK_WITH_STANDARD_LIBRARIES = YES;
 				OTHER_LDFLAGS = (
