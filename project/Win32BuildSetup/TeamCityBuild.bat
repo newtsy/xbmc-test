@@ -1,7 +1,7 @@
 SET comp=vs2010
 SET target=dx
 SET buildmode=ask
-SET promptlevel=prompt
+SET promptlevel=noprompt
 SET buildmingwlibs=true
 SET exitcode=0
 FOR %%b in (%1, %2, %3, %4, %5) DO (
