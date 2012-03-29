@@ -312,6 +312,7 @@ void CPeripheralCecAdapter::Process(void)
   }
 
   delete m_queryThread;
+  m_queryThread = NULL;
 
   if (m_iExitCode != EXITCODE_REBOOT)
   {
