@@ -7,17 +7,17 @@
 
 # lib name, version
 LIBNAME=libcec
-VERSION=latest
+VERSION=1.2.0
 SOURCE=$(LIBNAME)-$(VERSION)
 
 # download location and format
-BASE_URL=http://packages.pulse-eight.net/pulse/sources/libcec
-ARCHIVE=$(SOURCE).tar.bz2 
+BASE_URL=http://mirrors.xbmc.org/build-deps/darwin-libs
+ARCHIVE=$(SOURCE).tar.gz 
 TARBALLS_LOCATION=.
 RETRIEVE_TOOL=/usr/bin/curl
 RETRIEVE_TOOL_FLAGS=-Ls --create-dirs --output $(TARBALLS_LOCATION)/$(ARCHIVE)
 ARCHIVE_TOOL=tar
-ARCHIVE_TOOL_FLAGS=jxf
+ARCHIVE_TOOL_FLAGS=xf
 
 PREFIX ?= /usr/local
 LIBCEC_CONFIGOPTS ?= --prefix=$(PREFIX)
@@ -25,30 +25,30 @@ LIBCEC_CONFIGOPTS ?= --prefix=$(PREFIX)
 # configuration settings
 CONFIGURE=./configure CFLAGS=-D_FILE_OFFSET_BITS=64 $(LIBCEC_CONFIGOPTS)
 
-SO_NAME=$(LIBNAME)/.libs/$(LIBNAME).so
+SO_NAME=$(SOURCE)/.libs/$(LIBNAME).so
 
 all: $(SO_NAME)
 
 $(TARBALLS_LOCATION)/$(ARCHIVE):
 	$(RETRIEVE_TOOL) $(RETRIEVE_TOOL_FLAGS) $(BASE_URL)/$(ARCHIVE)
 
-$(LIBNAME): $(TARBALLS_LOCATION)/$(ARCHIVE)
-	rm -rf $(LIBNAME)
+$(SOURCE): $(TARBALLS_LOCATION)/$(ARCHIVE)
+	rm -rf $(SOURCE)
 	$(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
-	echo $(LIBNAME) > .gitignore
-	cd $(LIBNAME); autoreconf -vif
-	cd $(LIBNAME); $(CONFIGURE)
+	echo $(SOURCE) > .gitignore
+	cd $(SOURCE); autoreconf -vif
+	cd $(SOURCE); $(CONFIGURE)
 
-$(SO_NAME): $(LIBNAME)
-	make -j 1 -C $(LIBNAME)
+$(SO_NAME): $(SOURCE)
+	make -j 1 -C $(SOURCE)
 
 install:
-	make -C $(LIBNAME) install
+	make -C $(SOURCE) install
 	ldconfig
 
 clean:
-	rm -rf $(LIBNAME)
+	rm -rf $(SOURCE)
 
 distclean::
-	rm -rf $(LIBNAME)
+	rm -rf $(SOURCE)
 
