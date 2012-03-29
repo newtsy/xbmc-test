@@ -96,6 +96,7 @@ CPeripheralCecAdapter::~CPeripheralCecAdapter(void)
 
   m_bStop = true;
   StopThread(true);
+  CAnnouncementManager::RemoveAnnouncer(this);
 
   if (m_dll && m_cecAdapter)
   {
@@ -110,7 +111,11 @@ void CPeripheralCecAdapter::Announce(EAnnouncementFlag flag, const char *sender,
 {
   if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnQuit") && m_bIsReady)
   {
-    m_iExitCode = data.asInteger(0);
+    {
+      CSingleLock lock(m_critSection);
+      m_iExitCode = data.asInteger(0);
+    }
+    CAnnouncementManager::RemoveAnnouncer(this);
     StopThread(false);
   }
   else if (flag == GUI && !strcmp(sender, "xbmc") && !strcmp(message, "OnScreensaverDeactivated") && m_bIsReady)
@@ -140,25 +145,20 @@ void CPeripheralCecAdapter::Announce(EAnnouncementFlag flag, const char *sender,
   else if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnSleep"))
   {
     // this will also power off devices when we're the active source
-    {
-      CSingleLock lock(m_critSection);
-      m_bStop = true;
-    }
-    WaitForThreadExit(0);
+    StopThread();
   }
   else if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnWake"))
   {
     {
-      // reconnect to the device
       CSingleLock lock(m_critSection);
-      CLog::Log(LOGDEBUG, "%s - reconnecting to the CEC adapter after standby mode", __FUNCTION__);
-
-      // close the previous connection
-      m_cecAdapter->Close();
+      m_iExitCode = EXITCODE_RESTARTAPP;
     }
 
-    // and open a new one
+    CLog::Log(LOGDEBUG, "%s - reconnecting to the CEC adapter after standby mode", __FUNCTION__);
+    CAnnouncementManager::RemoveAnnouncer(this);
     StopThread();
+
+    // and open a new one
     Create();
   }
 }
@@ -297,6 +297,11 @@ void CPeripheralCecAdapter::Process(void)
   if (!OpenConnection())
     return;
 
+  {
+    CSingleLock lock(m_critSection);
+    m_iExitCode = EXITCODE_QUIT;
+  }
+
   CAnnouncementManager::AddAnnouncer(this);
 
   m_queryThread = new CPeripheralCecAdapterUpdateThread(this, &m_configuration);
@@ -314,7 +319,13 @@ void CPeripheralCecAdapter::Process(void)
   delete m_queryThread;
   m_queryThread = NULL;
 
-  if (m_iExitCode != EXITCODE_REBOOT)
+  int iExitCode(EXITCODE_QUIT);
+  {
+    CSingleLock lock(m_critSection);
+    iExitCode = m_iExitCode;
+  }
+
+  if (iExitCode != EXITCODE_REBOOT && iExitCode != EXITCODE_RESTARTAPP)
   {
     if (m_cecAdapter->IsLibCECActiveSource())
     {
