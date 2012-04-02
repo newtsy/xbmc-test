@@ -80,7 +80,8 @@ CPeripheralCecAdapter::CPeripheralCecAdapter(const PeripheralType type, const Pe
   m_lastKeypress(0),
   m_lastChange(VOLUME_CHANGE_NONE),
   m_iExitCode(0),
-  m_bIsMuted(false) // TODO fetch the correct initial value when system audiostatus is implemented in libCEC
+  m_bIsMuted(false), // TODO fetch the correct initial value when system audiostatus is implemented in libCEC
+  m_bGoingToStandby(false)
 {
   m_button.iButton = 0;
   m_button.iDuration = 0;
@@ -145,6 +146,10 @@ void CPeripheralCecAdapter::Announce(EAnnouncementFlag flag, const char *sender,
   else if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnSleep"))
   {
     // this will also power off devices when we're the active source
+    {
+      CSingleLock lock(m_critSection);
+      m_bGoingToStandby = false;
+    }
     StopThread();
   }
   else if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnWake"))
@@ -300,6 +305,7 @@ void CPeripheralCecAdapter::Process(void)
   {
     CSingleLock lock(m_critSection);
     m_iExitCode = EXITCODE_QUIT;
+    m_bGoingToStandby = false;
   }
 
   CAnnouncementManager::AddAnnouncer(this);
@@ -319,13 +325,15 @@ void CPeripheralCecAdapter::Process(void)
   delete m_queryThread;
   m_queryThread = NULL;
 
-  int iExitCode(EXITCODE_QUIT);
+  bool bSendStandbyCommands(false);
   {
     CSingleLock lock(m_critSection);
-    iExitCode = m_iExitCode;
+    bSendStandbyCommands = m_iExitCode != EXITCODE_REBOOT &&
+                           m_iExitCode != EXITCODE_RESTARTAPP &&
+                           (!m_bGoingToStandby || GetSettingBool("standby_tv_on_pc_standby"));
   }
 
-  if (iExitCode != EXITCODE_REBOOT && iExitCode != EXITCODE_RESTARTAPP)
+  if (bSendStandbyCommands)
   {
     if (m_cecAdapter->IsLibCECActiveSource())
     {

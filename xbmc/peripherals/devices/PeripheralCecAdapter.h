@@ -140,6 +140,7 @@ namespace PERIPHERALS
     CecVolumeChange                   m_lastChange;
     int                               m_iExitCode;
     bool                              m_bIsMuted;
+    bool                              m_bGoingToStandby;
     CPeripheralCecAdapterUpdateThread*m_queryThread;
     CEC::ICECCallbacks                m_callbacks;
     CCriticalSection                  m_critSection;
