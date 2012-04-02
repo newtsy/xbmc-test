@@ -974,7 +974,7 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
 
   // set the physical address, when baseDevice or iHDMIPort are not set
   if (m_configuration.baseDevice == CECDEVICE_UNKNOWN ||
-      m_configuration.iHDMIPort == 0 || m_configuration.iHDMIPort > 4)
+      m_configuration.iHDMIPort == 0 || m_configuration.iHDMIPort > 15)
   {
     m_configuration.iPhysicalAddress = config.iPhysicalAddress;
     CStdString strPhysicalAddress;
