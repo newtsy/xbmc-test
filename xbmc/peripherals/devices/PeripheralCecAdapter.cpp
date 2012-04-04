@@ -1008,7 +1008,7 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   // set the devices to wake when starting
   m_configuration.wakeDevices = config.wakeDevices;
   CStdString strWakeDevices;
-  for (unsigned int iPtr = 0; iPtr <= 16; iPtr++)
+  for (unsigned int iPtr = CECDEVICE_TV; iPtr <= CECDEVICE_BROADCAST; iPtr++)
     if (config.wakeDevices[iPtr])
       strWakeDevices.AppendFormat(" %X", iPtr);
   SetSetting("wake_devices", strWakeDevices.Trim());
@@ -1016,7 +1016,7 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   // set the devices to power off when stopping
   m_configuration.powerOffDevices = config.powerOffDevices;
   CStdString strPowerOffDevices;
-  for (unsigned int iPtr = 0; iPtr <= 16; iPtr++)
+  for (unsigned int iPtr = CECDEVICE_TV; iPtr <= CECDEVICE_BROADCAST; iPtr++)
     if (config.powerOffDevices[iPtr])
       strPowerOffDevices.AppendFormat(" %X", iPtr);
   SetSetting("wake_devices", strPowerOffDevices.Trim());
