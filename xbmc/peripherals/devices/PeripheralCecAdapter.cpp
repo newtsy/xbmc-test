@@ -206,6 +206,8 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
     else
     {
       CLog::Log(LOGDEBUG, "%s - using libCEC v%s", __FUNCTION__, m_cecAdapter->ToString((cec_server_version)m_configuration.serverVersion));
+      if (m_configuration.serverVersion >= CEC_SERVER_VERSION_1_6_0)
+        m_strVersionInfo.Format("%d", m_configuration.iFirmwareVersion);
     }
 
     m_bStarted = true;
@@ -1037,6 +1039,12 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   if (config.serverVersion >= CEC_SERVER_VERSION_1_5_1)
     m_configuration.bSendInactiveSource = config.bSendInactiveSource;
   SetSetting("send_inactive_source", m_configuration.bSendInactiveSource == 1);
+
+  if (config.serverVersion >= CEC_SERVER_VERSION_1_6_0)
+  {
+    m_configuration.iFirmwareVersion = config.iFirmwareVersion;
+    m_strVersionInfo.Format("%d", m_configuration.iFirmwareVersion);
+  }
 }
 
 void CPeripheralCecAdapter::SetConfigurationFromSettings(void)

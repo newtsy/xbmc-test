@@ -46,6 +46,7 @@ CPeripheral::CPeripheral(const PeripheralType type, const PeripheralBusType busT
   m_strFileLocation(StringUtils::EmptyString),
   m_iVendorId(iVendorId),
   m_iProductId(iProductId),
+  m_strVersionInfo("-"),
   m_bInitialised(false),
   m_bHidden(false),
   m_bError(false)
@@ -64,6 +65,7 @@ CPeripheral::CPeripheral(void) :
   m_iVendorId(0),
   m_strVendorId("0000"),
   m_iProductId(0),
+  m_strVersionInfo("-"),
   m_strProductId("0000"),
   m_bInitialised(false),
   m_bHidden(false)
