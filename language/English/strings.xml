@@ -2866,4 +2866,5 @@
   <string id="36024">Failed to set the new configuration. Please check your settings.</string>
   <string id="36025">Send 'inactive source' command when stopping XBMC</string>
   <string id="36026">Put devices in standby mode when putting the PC in standby</string>
+  <string id="36027">This device needs servicing</string>
 </strings>

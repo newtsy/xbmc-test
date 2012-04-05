@@ -178,6 +178,7 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
     m_callbacks.CBCecKeyPress             = &CecKeyPress;
     m_callbacks.CBCecCommand              = &CecCommand;
     m_callbacks.CBCecConfigurationChanged = &CecConfiguration;
+    m_callbacks.CBCecAlert                = &CecAlert;
     m_configuration.callbackParam         = this;
     m_configuration.callbacks             = &m_callbacks;
 
@@ -660,6 +661,30 @@ int CPeripheralCecAdapter::CecConfiguration(void *cbParam, const libcec_configur
 
   CSingleLock lock(adapter->m_critSection);
   adapter->SetConfigurationFromLibCEC(config);
+  return 1;
+}
+
+int CPeripheralCecAdapter::CecAlert(void *cbParam, const libcec_alert alert, const libcec_parameter &data)
+{
+  (void)data;
+
+  CPeripheralCecAdapter *adapter = (CPeripheralCecAdapter *)cbParam;
+  if (!adapter)
+    return 0;
+
+  int iAlertString(0);
+  switch (alert)
+  {
+  case CEC_ALERT_SERVICE_DEVICE:
+    iAlertString = 36027;
+    break;
+  default:
+    break;
+  }
+
+  if (iAlertString)
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), g_localizeStrings.Get(iAlertString));
+
   return 1;
 }
 
