@@ -1069,7 +1069,7 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   {
     m_configuration.iFirmwareVersion = config.iFirmwareVersion;
     m_strVersionInfo.Format("%d", m_configuration.iFirmwareVersion);
-    m_configuration.bShutdownOnStandby = config.bShutdownOnStandby;
+    m_configuration.bShutdownOnStandby = config.bShutdownOnStandby == 1;
   }
 }
 
