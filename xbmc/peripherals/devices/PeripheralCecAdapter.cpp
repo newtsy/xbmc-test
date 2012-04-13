@@ -586,11 +586,15 @@ int CPeripheralCecAdapter::CecCommand(void *cbParam, const cec_command &command)
     case CEC_OPCODE_STANDBY:
       /* a device was put in standby mode */
       CLog::Log(LOGDEBUG, "%s - device %1x was put in standby mode", __FUNCTION__, command.initiator);
-      if (command.initiator == CECDEVICE_TV && adapter->m_configuration.bPowerOffOnStandby == 1 &&
+      if (command.initiator == CECDEVICE_TV &&
+          (adapter->m_configuration.bPowerOffOnStandby == 1 || adapter->m_configuration.bShutdownOnStandby == 1) &&
           (!adapter->m_screensaverLastActivated.IsValid() || CDateTime::GetCurrentDateTime() - adapter->m_screensaverLastActivated > CDateTimeSpan(0, 0, 0, SCREENSAVER_TIMEOUT)))
       {
         adapter->m_bStarted = false;
-        g_application.getApplicationMessenger().Suspend();
+        if (adapter->m_configuration.bPowerOffOnStandby == 1)
+          g_application.getApplicationMessenger().Suspend();
+        else if (adapter->m_configuration.bShutdownOnStandby == 1)
+          g_application.getApplicationMessenger().Shutdown();
       }
       break;
     case CEC_OPCODE_SET_MENU_LANGUAGE:
@@ -1059,7 +1063,6 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   SetSetting("cec_standby_screensaver", m_configuration.bPowerOffScreensaver == 1);
 
   m_configuration.bPowerOffOnStandby = config.bPowerOffOnStandby;
-  SetSetting("standby_pc_on_tv_standby", m_configuration.bPowerOffOnStandby == 1);
 
   if (config.serverVersion >= CEC_SERVER_VERSION_1_5_1)
     m_configuration.bSendInactiveSource = config.bSendInactiveSource;
@@ -1069,8 +1072,12 @@ void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configu
   {
     m_configuration.iFirmwareVersion = config.iFirmwareVersion;
     m_strVersionInfo.Format("%d", m_configuration.iFirmwareVersion);
-    m_configuration.bShutdownOnStandby = config.bShutdownOnStandby == 1;
+    m_configuration.bShutdownOnStandby = config.bShutdownOnStandby;
   }
+
+  SetSetting("standby_pc_on_tv_standby",
+             m_configuration.bPowerOffOnStandby == 1 ? 13011 :
+             m_configuration.bShutdownOnStandby == 1 ? 13005 : 36028);
 }
 
 void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
@@ -1133,8 +1140,12 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
   m_configuration.bUseTVMenuLanguage   = GetSettingBool("use_tv_menu_language") ? 1 : 0;
   m_configuration.bActivateSource      = GetSettingBool("activate_source") ? 1 : 0;
   m_configuration.bPowerOffScreensaver = GetSettingBool("cec_standby_screensaver") ? 1 : 0;
-  m_configuration.bPowerOffOnStandby   = GetSettingBool("standby_pc_on_tv_standby") ? 1 : 0;
   m_configuration.bSendInactiveSource  = GetSettingBool("send_inactive_source") ? 1 : 0;
+
+  // read the mutually exclusive boolean settings
+  int iStandbyAction(GetSettingInt("standby_pc_on_tv_standby"));
+  m_configuration.bPowerOffOnStandby = iStandbyAction == 13011 ? 1 : 0;
+  m_configuration.bShutdownOnStandby = iStandbyAction == 13005 ? 1 : 0;
 }
 
 void CPeripheralCecAdapter::ReadLogicalAddresses(const CStdString &strString, cec_logical_addresses &addresses)
