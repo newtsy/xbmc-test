@@ -41,7 +41,7 @@ using namespace PERIPHERALS;
 using namespace ANNOUNCEMENT;
 using namespace CEC;
 
-#define CEC_LIB_SUPPORTED_VERSION 0x1500
+#define CEC_LIB_SUPPORTED_VERSION 0x1602
 
 /* time in seconds to ignore standby commands from devices after the screensaver has been activated */
 #define SCREENSAVER_TIMEOUT       10
@@ -72,6 +72,8 @@ class DllLibCEC : public DllDynamic, DllLibCECInterface
 CPeripheralCecAdapter::CPeripheralCecAdapter(const PeripheralType type, const PeripheralBusType busType, const CStdString &strLocation, const CStdString &strDeviceName, int iVendorId, int iProductId) :
   CPeripheralHID(type, busType, strLocation, strDeviceName, iVendorId, iProductId),
   CThread("CEC Adapter"),
+  m_dll(NULL),
+  m_cecAdapter(NULL),
   m_bStarted(false),
   m_bHasButton(false),
   m_bIsReady(false),
@@ -80,7 +82,10 @@ CPeripheralCecAdapter::CPeripheralCecAdapter(const PeripheralType type, const Pe
   m_lastKeypress(0),
   m_lastChange(VOLUME_CHANGE_NONE),
   m_iExitCode(0),
-  m_bIsMuted(false) // TODO fetch the correct initial value when system audiostatus is implemented in libCEC
+  m_bIsMuted(false), // TODO fetch the correct initial value when system audiostatus is implemented in libCEC
+  m_bGoingToStandby(false),
+  m_bIsRunning(false),
+  m_bDeviceRemoved(false)
 {
   m_button.iButton = 0;
   m_button.iDuration = 0;
@@ -92,9 +97,12 @@ CPeripheralCecAdapter::CPeripheralCecAdapter(const PeripheralType type, const Pe
 
 CPeripheralCecAdapter::~CPeripheralCecAdapter(void)
 {
-  CAnnouncementManager::RemoveAnnouncer(this);
+  {
+    CSingleLock lock(m_critSection);
+    CAnnouncementManager::RemoveAnnouncer(this);
+    m_bStop = true;
+  }
 
-  m_bStop = true;
   StopThread(true);
 
   if (m_dll && m_cecAdapter)
@@ -110,12 +118,24 @@ void CPeripheralCecAdapter::Announce(EAnnouncementFlag flag, const char *sender,
 {
   if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnQuit") && m_bIsReady)
   {
+    CSingleLock lock(m_critSection);
     m_iExitCode = data.asInteger(0);
+    CAnnouncementManager::RemoveAnnouncer(this);
     StopThread(false);
   }
   else if (flag == GUI && !strcmp(sender, "xbmc") && !strcmp(message, "OnScreensaverDeactivated") && m_bIsReady)
   {
-    if (m_configuration.bPowerOffScreensaver == 1)
+    bool bIgnoreDeactivate(false);
+    if (data.isBoolean())
+    {
+      // don't respond to the deactivation if we are just going to suspend/shutdown anyway
+      // the tv will not have time to switch on before being told to standby and
+      // may not action the standby command.
+      bIgnoreDeactivate = data.asBoolean();
+      if (bIgnoreDeactivate)
+        CLog::Log(LOGDEBUG, "%s - ignoring OnScreensaverDeactivated for power action", __FUNCTION__);
+    }
+    if (m_configuration.bPowerOffScreensaver == 1 && !bIgnoreDeactivate)
     {
       // power off/on on screensaver is set, and devices to wake are set
       if (!m_configuration.wakeDevices.IsEmpty())
@@ -142,24 +162,14 @@ void CPeripheralCecAdapter::Announce(EAnnouncementFlag flag, const char *sender,
     // this will also power off devices when we're the active source
     {
       CSingleLock lock(m_critSection);
-      m_bStop = true;
+      m_bGoingToStandby = false;
     }
-    WaitForThreadExit(0);
+    StopThread();
   }
   else if (flag == System && !strcmp(sender, "xbmc") && !strcmp(message, "OnWake"))
   {
-    {
-      // reconnect to the device
-      CSingleLock lock(m_critSection);
-      CLog::Log(LOGDEBUG, "%s - reconnecting to the CEC adapter after standby mode", __FUNCTION__);
-
-      // close the previous connection
-      m_cecAdapter->Close();
-    }
-
-    // and open a new one
-    StopThread();
-    Create();
+    CLog::Log(LOGDEBUG, "%s - reconnecting to the CEC adapter after standby mode", __FUNCTION__);
+    ReopenConnection();
   }
 }
 
@@ -172,6 +182,7 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
     m_callbacks.CBCecKeyPress             = &CecKeyPress;
     m_callbacks.CBCecCommand              = &CecCommand;
     m_callbacks.CBCecConfigurationChanged = &CecConfiguration;
+    m_callbacks.CBCecAlert                = &CecAlert;
     m_configuration.callbackParam         = this;
     m_configuration.callbacks             = &m_callbacks;
 
@@ -179,15 +190,24 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
     if (m_dll->Load() && m_dll->IsLoaded())
       m_cecAdapter = m_dll->CECInitialise(&m_configuration);
     else
+    {
+      // display warning: libCEC could not be loaded
+      CLog::Log(LOGERROR, "%s", g_localizeStrings.Get(36017).c_str());
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000), g_localizeStrings.Get(36029));
+      delete m_dll;
+      m_dll = NULL;
+      m_features.clear();
       return false;
+    }
 
     if (m_configuration.serverVersion < CEC_LIB_SUPPORTED_VERSION)
     {
       /* unsupported libcec version */
-      CLog::Log(LOGERROR, g_localizeStrings.Get(36013).c_str(), CEC_LIB_SUPPORTED_VERSION, m_cecAdapter ? m_configuration.serverVersion : -1);
+      CLog::Log(LOGERROR, g_localizeStrings.Get(36013).c_str(), m_cecAdapter ? m_configuration.serverVersion : -1, CEC_LIB_SUPPORTED_VERSION);
 
+      // display warning: incompatible libCEC
       CStdString strMessage;
-      strMessage.Format(g_localizeStrings.Get(36013).c_str(), CEC_LIB_SUPPORTED_VERSION, m_cecAdapter ? m_configuration.serverVersion : -1);
+      strMessage.Format(g_localizeStrings.Get(36013).c_str(), m_cecAdapter ? m_configuration.serverVersion : -1, CEC_LIB_SUPPORTED_VERSION);
       CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000), strMessage);
       m_bError = true;
       if (m_cecAdapter)
@@ -200,6 +220,7 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
     else
     {
       CLog::Log(LOGDEBUG, "%s - using libCEC v%s", __FUNCTION__, m_cecAdapter->ToString((cec_server_version)m_configuration.serverVersion));
+      SetVersionInfo(m_configuration);
     }
 
     m_bStarted = true;
@@ -207,6 +228,23 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
   }
 
   return CPeripheral::InitialiseFeature(feature);
+}
+
+void CPeripheralCecAdapter::SetVersionInfo(const libcec_configuration &configuration)
+{
+  m_strVersionInfo.Format("libCEC %s", m_cecAdapter->ToString((cec_server_version)configuration.serverVersion));
+
+  // append firmware version number
+  if (configuration.serverVersion >= CEC_SERVER_VERSION_1_6_0)
+    m_strVersionInfo.AppendFormat(" - firmware v%d", configuration.iFirmwareVersion);
+
+  // append firmware build date
+  if (configuration.serverVersion >= CEC_SERVER_VERSION_1_6_2 &&
+      configuration.iFirmwareBuildDate != CEC_FW_BUILD_UNKNOWN)
+  {
+    CDateTime dt((time_t)configuration.iFirmwareBuildDate);
+    m_strVersionInfo.AppendFormat(" (%s)", dt.GetAsDBDate().c_str());
+  }
 }
 
 CStdString CPeripheralCecAdapter::GetComPort(void)
@@ -222,6 +260,7 @@ CStdString CPeripheralCecAdapter::GetComPort(void)
     if (iFound <= 0)
     {
       CLog::Log(LOGWARNING, "%s - no CEC adapters found on %s", __FUNCTION__, strPort.c_str());
+      // display warning: couldn't set up com port
       CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000), g_localizeStrings.Get(36011));
       strPort = "";
     }
@@ -269,6 +308,7 @@ bool CPeripheralCecAdapter::OpenConnection(void)
   {
     if ((bIsOpen = m_cecAdapter->Open(strPort.c_str(), 10000)) == false)
     {
+      // display warning: couldn't initialise libCEC
       CLog::Log(LOGERROR, "%s - could not opening a connection to the CEC adapter", __FUNCTION__);
       if (!bConnectionFailedDisplayed)
         CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000), g_localizeStrings.Get(36012));
@@ -280,6 +320,10 @@ bool CPeripheralCecAdapter::OpenConnection(void)
 
   if (bIsOpen)
   {
+    // read the configuration
+    m_cecAdapter->GetCurrentConfiguration(&m_configuration);
+    SetVersionInfo(m_configuration);
+
     CLog::Log(LOGDEBUG, "%s - connection to the CEC adapter opened", __FUNCTION__);
 
     if (!m_configuration.wakeDevices.IsEmpty())
@@ -297,6 +341,13 @@ void CPeripheralCecAdapter::Process(void)
   if (!OpenConnection())
     return;
 
+  {
+    CSingleLock lock(m_critSection);
+    m_iExitCode = EXITCODE_QUIT;
+    m_bGoingToStandby = false;
+    m_bIsRunning = true;
+  }
+
   CAnnouncementManager::AddAnnouncer(this);
 
   m_queryThread = new CPeripheralCecAdapterUpdateThread(this, &m_configuration);
@@ -312,8 +363,18 @@ void CPeripheralCecAdapter::Process(void)
   }
 
   delete m_queryThread;
+  m_queryThread = NULL;
 
-  if (m_iExitCode != EXITCODE_REBOOT)
+  bool bSendStandbyCommands(false);
+  {
+    CSingleLock lock(m_critSection);
+    bSendStandbyCommands = m_iExitCode != EXITCODE_REBOOT &&
+                           m_iExitCode != EXITCODE_RESTARTAPP &&
+                           !m_bDeviceRemoved &&
+                           (!m_bGoingToStandby || GetSettingBool("standby_tv_on_pc_standby"));
+  }
+
+  if (bSendStandbyCommands)
   {
     if (m_cecAdapter->IsLibCECActiveSource())
     {
@@ -337,7 +398,12 @@ void CPeripheralCecAdapter::Process(void)
   m_cecAdapter->Close();
 
   CLog::Log(LOGDEBUG, "%s - CEC adapter processor thread ended", __FUNCTION__);
-  m_bStarted = false;
+
+  {
+    CSingleLock lock(m_critSection);
+    m_bStarted = false;
+    m_bIsRunning = false;
+  }
 }
 
 bool CPeripheralCecAdapter::HasConnectedAudioSystem(void)
@@ -556,11 +622,15 @@ int CPeripheralCecAdapter::CecCommand(void *cbParam, const cec_command &command)
     case CEC_OPCODE_STANDBY:
       /* a device was put in standby mode */
       CLog::Log(LOGDEBUG, "%s - device %1x was put in standby mode", __FUNCTION__, command.initiator);
-      if (command.initiator == CECDEVICE_TV && adapter->m_configuration.bPowerOffOnStandby == 1 &&
+      if (command.initiator == CECDEVICE_TV &&
+          (adapter->m_configuration.bPowerOffOnStandby == 1 || adapter->m_configuration.bShutdownOnStandby == 1) &&
           (!adapter->m_screensaverLastActivated.IsValid() || CDateTime::GetCurrentDateTime() - adapter->m_screensaverLastActivated > CDateTimeSpan(0, 0, 0, SCREENSAVER_TIMEOUT)))
       {
         adapter->m_bStarted = false;
-        g_application.getApplicationMessenger().Suspend();
+        if (adapter->m_configuration.bPowerOffOnStandby == 1)
+          g_application.getApplicationMessenger().Suspend();
+        else if (adapter->m_configuration.bShutdownOnStandby == 1)
+          g_application.getApplicationMessenger().Shutdown();
       }
       break;
     case CEC_OPCODE_SET_MENU_LANGUAGE:
@@ -607,15 +677,6 @@ int CPeripheralCecAdapter::CecCommand(void *cbParam, const cec_command &command)
         }
       }
       break;
-    case CEC_OPCODE_REPORT_POWER_STATUS:
-      if (command.initiator == CECDEVICE_TV &&
-          command.parameters.size == 1 &&
-          command.parameters[0] == CEC_POWER_STATUS_ON &&
-          adapter->m_queryThread)
-      {
-        adapter->m_queryThread->Signal();
-      }
-      break;
     default:
       break;
     }
@@ -631,6 +692,39 @@ int CPeripheralCecAdapter::CecConfiguration(void *cbParam, const libcec_configur
 
   CSingleLock lock(adapter->m_critSection);
   adapter->SetConfigurationFromLibCEC(config);
+  return 1;
+}
+
+int CPeripheralCecAdapter::CecAlert(void *cbParam, const libcec_alert alert, const libcec_parameter &data)
+{
+  (void)data;
+
+  CPeripheralCecAdapter *adapter = (CPeripheralCecAdapter *)cbParam;
+  if (!adapter)
+    return 0;
+
+  bool bReopenConnection(false);
+  int iAlertString(0);
+  switch (alert)
+  {
+  case CEC_ALERT_SERVICE_DEVICE:
+    iAlertString = 36027;
+    break;
+  case CEC_ALERT_CONNECTION_LOST:
+    bReopenConnection = true;
+    iAlertString = 36030;
+    break;
+  default:
+    break;
+  }
+
+  // display the alert
+  if (iAlertString)
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), g_localizeStrings.Get(iAlertString));
+
+  if (bReopenConnection)
+    adapter->ReopenConnection();
+
   return 1;
 }
 
@@ -695,6 +789,9 @@ bool CPeripheralCecAdapter::GetNextKey(void)
   case CEC_USER_CONTROL_CODE_RIGHT_DOWN:
     iButton = XINPUT_IR_REMOTE_RIGHT;
     break;
+  case CEC_USER_CONTROL_CODE_SETUP_MENU:
+  case CEC_USER_CONTROL_CODE_CONTENTS_MENU:
+  case CEC_USER_CONTROL_CODE_FAVORITE_MENU:
   case CEC_USER_CONTROL_CODE_ROOT_MENU:
     iButton = XINPUT_IR_REMOTE_MENU;
     break;
@@ -711,7 +808,11 @@ bool CPeripheralCecAdapter::GetNextKey(void)
     iButton = XINPUT_IR_REMOTE_CHANNEL_PLUS;
     break;
   case CEC_USER_CONTROL_CODE_PREVIOUS_CHANNEL:
+#if defined(XINPUT_IR_REMOTE_TELETEXT)
+    iButton = XINPUT_IR_REMOTE_TELETEXT; // only supported by the pvr branch
+#else
     iButton = XINPUT_IR_REMOTE_BACK;
+#endif
     break;
   case CEC_USER_CONTROL_CODE_SOUND_SELECT:
     iButton = XINPUT_IR_REMOTE_LANGUAGE;
@@ -806,13 +907,27 @@ bool CPeripheralCecAdapter::GetNextKey(void)
   case CEC_USER_CONTROL_CODE_F4_YELLOW:
     iButton = XINPUT_IR_REMOTE_YELLOW;
     break;
+  case CEC_USER_CONTROL_CODE_ELECTRONIC_PROGRAM_GUIDE:
+#if defined(XINPUT_IR_REMOTE_GUIDE)
+    iButton = XINPUT_IR_REMOTE_GUIDE;
+#else
+    bHasButton = false;
+#endif
+    break;
+  case CEC_USER_CONTROL_CODE_AN_CHANNELS_LIST:
+#if defined(XINPUT_IR_REMOTE_LIVE_TV)
+    iButton = XINPUT_IR_REMOTE_LIVE_TV;
+#else
+    bHasButton = false;
+#endif
+    break;
+  case CEC_USER_CONTROL_CODE_NEXT_FAVORITE:
+  case CEC_USER_CONTROL_CODE_DOT:
+  case CEC_USER_CONTROL_CODE_AN_RETURN:
+    iButton = XINPUT_IR_REMOTE_TITLE; // context menu
+    break;
   case CEC_USER_CONTROL_CODE_POWER_ON_FUNCTION:
   case CEC_USER_CONTROL_CODE_EJECT:
-  case CEC_USER_CONTROL_CODE_SETUP_MENU:
-  case CEC_USER_CONTROL_CODE_CONTENTS_MENU:
-  case CEC_USER_CONTROL_CODE_FAVORITE_MENU:
-  case CEC_USER_CONTROL_CODE_DOT:
-  case CEC_USER_CONTROL_CODE_NEXT_FAVORITE:
   case CEC_USER_CONTROL_CODE_INPUT_SELECT:
   case CEC_USER_CONTROL_CODE_INITIAL_CONFIGURATION:
   case CEC_USER_CONTROL_CODE_HELP:
@@ -821,7 +936,6 @@ bool CPeripheralCecAdapter::GetNextKey(void)
   case CEC_USER_CONTROL_CODE_ANGLE:
   case CEC_USER_CONTROL_CODE_SUB_PICTURE:
   case CEC_USER_CONTROL_CODE_VIDEO_ON_DEMAND:
-  case CEC_USER_CONTROL_CODE_ELECTRONIC_PROGRAM_GUIDE:
   case CEC_USER_CONTROL_CODE_TIMER_PROGRAMMING:
   case CEC_USER_CONTROL_CODE_PLAY_FUNCTION:
   case CEC_USER_CONTROL_CODE_PAUSE_PLAY_FUNCTION:
@@ -889,15 +1003,29 @@ void CPeripheralCecAdapter::OnSettingChanged(const CStdString &strChangedSetting
   if (strChangedSetting.Equals("enabled"))
   {
     bool bEnabled(GetSettingBool("enabled"));
-    if (!bEnabled && m_cecAdapter && m_bStarted)
+    if (!bEnabled && IsRunning())
+    {
+      CLog::Log(LOGDEBUG, "%s - closing the CEC connection", __FUNCTION__);
       StopThread(true);
-    else if (bEnabled && !m_cecAdapter && m_bStarted)
+    }
+    else if (bEnabled && !IsRunning())
+    {
+      CLog::Log(LOGDEBUG, "%s - starting the CEC connection", __FUNCTION__);
+      SetConfigurationFromSettings();
       InitialiseFeature(FEATURE_CEC);
+    }
+  }
+  else if (IsRunning())
+  {
+    CLog::Log(LOGDEBUG, "%s - sending the updated configuration to libCEC", __FUNCTION__);
+    SetConfigurationFromSettings();
+    m_queryThread->UpdateConfiguration(&m_configuration);
   }
   else
   {
+    CLog::Log(LOGDEBUG, "%s - restarting the CEC connection", __FUNCTION__);
     SetConfigurationFromSettings();
-    m_queryThread->UpdateConfiguration(&m_configuration);
+    InitialiseFeature(FEATURE_CEC);
   }
 }
 
@@ -947,71 +1075,88 @@ bool CPeripheralCecAdapter::TranslateComPort(CStdString &strLocation)
 
 void CPeripheralCecAdapter::SetConfigurationFromLibCEC(const CEC::libcec_configuration &config)
 {
+  bool bChanged(false);
+
   // set the primary device type
   m_configuration.deviceTypes.Clear();
   m_configuration.deviceTypes.Add(config.deviceTypes[0]);
-  SetSetting("device_type", (int)config.deviceTypes[0]);
+  bChanged |= SetSetting("device_type", (int)config.deviceTypes[0]);
 
   // set the connected device
   m_configuration.baseDevice = config.baseDevice;
-  SetSetting("connected_device", (int)config.baseDevice);
+  bChanged |= SetSetting("connected_device", (int)config.baseDevice);
 
   // set the HDMI port number
   m_configuration.iHDMIPort = config.iHDMIPort;
-  SetSetting("cec_hdmi_port", config.iHDMIPort);
+  bChanged |= SetSetting("cec_hdmi_port", config.iHDMIPort);
 
   // set the physical address, when baseDevice or iHDMIPort are not set
+  CStdString strPhysicalAddress("0");
   if (m_configuration.baseDevice == CECDEVICE_UNKNOWN ||
-      m_configuration.iHDMIPort == 0 || m_configuration.iHDMIPort > 4)
+      m_configuration.iHDMIPort < CEC_MIN_HDMI_PORTNUMBER ||
+      m_configuration.iHDMIPort > CEC_MAX_HDMI_PORTNUMBER)
   {
     m_configuration.iPhysicalAddress = config.iPhysicalAddress;
-    CStdString strPhysicalAddress;
     strPhysicalAddress.Format("%x", config.iPhysicalAddress);
-    SetSetting("physical_address", strPhysicalAddress);
   }
+  bChanged |= SetSetting("physical_address", strPhysicalAddress);
 
   // set the tv vendor override
   m_configuration.tvVendor = config.tvVendor;
-  SetSetting("tv_vendor", (int)config.tvVendor);
+  bChanged |= SetSetting("tv_vendor", (int)config.tvVendor);
 
   // set the devices to wake when starting
   m_configuration.wakeDevices = config.wakeDevices;
   CStdString strWakeDevices;
-  for (unsigned int iPtr = 0; iPtr <= 16; iPtr++)
+  for (unsigned int iPtr = CECDEVICE_TV; iPtr <= CECDEVICE_BROADCAST; iPtr++)
     if (config.wakeDevices[iPtr])
       strWakeDevices.AppendFormat(" %X", iPtr);
-  SetSetting("wake_devices", strWakeDevices.Trim());
+  bChanged |= SetSetting("wake_devices", strWakeDevices.Trim());
 
   // set the devices to power off when stopping
   m_configuration.powerOffDevices = config.powerOffDevices;
   CStdString strPowerOffDevices;
-  for (unsigned int iPtr = 0; iPtr <= 16; iPtr++)
+  for (unsigned int iPtr = CECDEVICE_TV; iPtr <= CECDEVICE_BROADCAST; iPtr++)
     if (config.powerOffDevices[iPtr])
       strPowerOffDevices.AppendFormat(" %X", iPtr);
-  SetSetting("wake_devices", strPowerOffDevices.Trim());
+  bChanged |= SetSetting("standby_devices", strPowerOffDevices.Trim());
 
   // set the boolean settings
   m_configuration.bUseTVMenuLanguage = config.bUseTVMenuLanguage;
-  SetSetting("use_tv_menu_language", m_configuration.bUseTVMenuLanguage == 1);
+  bChanged |= SetSetting("use_tv_menu_language", m_configuration.bUseTVMenuLanguage == 1);
 
   m_configuration.bActivateSource = config.bActivateSource;
-  SetSetting("activate_source", m_configuration.bActivateSource == 1);
+  bChanged |= SetSetting("activate_source", m_configuration.bActivateSource == 1);
 
   m_configuration.bPowerOffScreensaver = config.bPowerOffScreensaver;
-  SetSetting("cec_standby_screensaver", m_configuration.bPowerOffScreensaver == 1);
+  bChanged |= SetSetting("cec_standby_screensaver", m_configuration.bPowerOffScreensaver == 1);
 
   m_configuration.bPowerOffOnStandby = config.bPowerOffOnStandby;
-  SetSetting("standby_pc_on_tv_standby", m_configuration.bPowerOffOnStandby == 1);
 
   if (config.serverVersion >= CEC_SERVER_VERSION_1_5_1)
     m_configuration.bSendInactiveSource = config.bSendInactiveSource;
-  SetSetting("send_inactive_source", m_configuration.bSendInactiveSource == 1);
+  bChanged |= SetSetting("send_inactive_source", m_configuration.bSendInactiveSource == 1);
+
+  if (config.serverVersion >= CEC_SERVER_VERSION_1_6_0)
+  {
+    m_configuration.iFirmwareVersion = config.iFirmwareVersion;
+    m_configuration.bShutdownOnStandby = config.bShutdownOnStandby;
+  }
+
+  SetVersionInfo(m_configuration);
+
+  bChanged |= SetSetting("standby_pc_on_tv_standby",
+             m_configuration.bPowerOffOnStandby == 1 ? 13011 :
+             m_configuration.bShutdownOnStandby == 1 ? 13005 : 36028);
+
+  if (bChanged)
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), g_localizeStrings.Get(36023));
 }
 
 void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
 {
-  // client version 1.5.0
-  m_configuration.clientVersion = CEC_CLIENT_VERSION_1_5_1;
+  // client version 1.6.0
+  m_configuration.clientVersion = CEC_CLIENT_VERSION_1_6_2;
 
   // device name 'XBMC'
   snprintf(m_configuration.strDeviceName, 13, "%s", GetSettingString("device_name").c_str());
@@ -1027,28 +1172,35 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
 
   // always try to autodetect the address.
   // when the firmware supports this, it will override the physical address, connected device and hdmi port settings
-  m_configuration.bAutodetectAddress = 1;
+  m_configuration.bAutodetectAddress = CEC_DEFAULT_SETTING_AUTODETECT_ADDRESS;
 
   // set the physical address
   // when set, it will override the connected device and hdmi port settings
   CStdString strPhysicalAddress = GetSettingString("physical_address");
   int iPhysicalAddress;
-  if (sscanf(strPhysicalAddress.c_str(), "%x", &iPhysicalAddress) == 1 && iPhysicalAddress > 0 && iPhysicalAddress < 0xFFFF)
+  if (sscanf(strPhysicalAddress.c_str(), "%x", &iPhysicalAddress) &&
+      iPhysicalAddress >= CEC_PHYSICAL_ADDRESS_TV &&
+      iPhysicalAddress <= CEC_MAX_PHYSICAL_ADDRESS)
     m_configuration.iPhysicalAddress = iPhysicalAddress;
+  else
+    m_configuration.iPhysicalAddress = CEC_PHYSICAL_ADDRESS_TV;
 
   // set the connected device
   int iConnectedDevice = GetSettingInt("connected_device");
-  if (iConnectedDevice == 0 || iConnectedDevice == 5)
+  if (iConnectedDevice == CECDEVICE_TV ||
+      iConnectedDevice == CECDEVICE_AUDIOSYSTEM)
     m_configuration.baseDevice = (cec_logical_address)iConnectedDevice;
 
   // set the HDMI port number
   int iHDMIPort = GetSettingInt("cec_hdmi_port");
-  if (iHDMIPort >= 0 && iHDMIPort <= 4)
+  if (iHDMIPort >= CEC_MIN_HDMI_PORTNUMBER &&
+      iHDMIPort <= CEC_MAX_HDMI_PORTNUMBER)
     m_configuration.iHDMIPort = iHDMIPort;
 
   // set the tv vendor override
   int iVendor = GetSettingInt("tv_vendor");
-  if (iVendor > 0 && iVendor < 0xFFFFFF)
+  if (iVendor >= CEC_MAX_VENDORID &&
+      iVendor <= CEC_MAX_VENDORID)
     m_configuration.tvVendor = iVendor;
 
   // read the devices to wake when starting
@@ -1061,15 +1213,16 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
   m_configuration.powerOffDevices.Clear();
   ReadLogicalAddresses(strStandbyDevices, m_configuration.powerOffDevices);
 
-  // always get the settings from the rom, when supported by the firmware
-  m_configuration.bGetSettingsFromROM = 1;
-
   // read the boolean settings
   m_configuration.bUseTVMenuLanguage   = GetSettingBool("use_tv_menu_language") ? 1 : 0;
   m_configuration.bActivateSource      = GetSettingBool("activate_source") ? 1 : 0;
   m_configuration.bPowerOffScreensaver = GetSettingBool("cec_standby_screensaver") ? 1 : 0;
-  m_configuration.bPowerOffOnStandby   = GetSettingBool("standby_pc_on_tv_standby") ? 1 : 0;
   m_configuration.bSendInactiveSource  = GetSettingBool("send_inactive_source") ? 1 : 0;
+
+  // read the mutually exclusive boolean settings
+  int iStandbyAction(GetSettingInt("standby_pc_on_tv_standby"));
+  m_configuration.bPowerOffOnStandby = iStandbyAction == 13011 ? 1 : 0;
+  m_configuration.bShutdownOnStandby = iStandbyAction == 13005 ? 1 : 0;
 }
 
 void CPeripheralCecAdapter::ReadLogicalAddresses(const CStdString &strString, cec_logical_addresses &addresses)
@@ -1112,6 +1265,9 @@ void CPeripheralCecAdapterUpdateThread::Signal(void)
 bool CPeripheralCecAdapterUpdateThread::UpdateConfiguration(libcec_configuration *configuration)
 {
   CSingleLock lock(m_critSection);
+  if (!configuration)
+    return false;
+
   if (m_bIsUpdating)
   {
     m_bNextConfigurationScheduled = true;
@@ -1166,9 +1322,16 @@ bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
   // request the menu language of the TV
   if (m_configuration.bUseTVMenuLanguage == 1)
   {
+    CLog::Log(LOGDEBUG, "%s - requesting the menu language of the TV", __FUNCTION__);
     cec_menu_language language;
     if (m_adapter->m_cecAdapter->GetDeviceMenuLanguage(CECDEVICE_TV, &language))
       m_adapter->SetMenuLanguage(language.language);
+    else
+      CLog::Log(LOGDEBUG, "%s - unknown menu language", __FUNCTION__);
+  }
+  else
+  {
+    CLog::Log(LOGDEBUG, "%s - using TV menu language is disabled", __FUNCTION__);
   }
 
   // request the OSD name of the TV
@@ -1203,6 +1366,12 @@ bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
   return true;
 }
 
+bool CPeripheralCecAdapter::IsRunning(void) const
+{
+  CSingleLock lock(m_critSection);
+  return m_bIsRunning;
+}
+
 void CPeripheralCecAdapterUpdateThread::Process(void)
 {
   // set the initial configuration
@@ -1214,17 +1383,27 @@ void CPeripheralCecAdapterUpdateThread::Process(void)
   while (!m_bStop)
   {
     // update received
-    if (m_event.WaitMSec(500) || bUpdate)
+    if (bUpdate || m_event.WaitMSec(500))
     {
       if (m_bStop)
         return;
       // set the new configuration
-      bool bConfigSet(m_adapter->m_cecAdapter->SetConfiguration(&m_configuration));
+      libcec_configuration configuration;
+      {
+        CSingleLock lock(m_critSection);
+        configuration = m_configuration;
+        m_bIsUpdating = false;
+      }
+
+      CLog::Log(LOGDEBUG, "%s - updating the configuration", __FUNCTION__);
+      bool bConfigSet(m_adapter->m_cecAdapter->SetConfiguration(&configuration));
+      // display message: config updated / failed to update
+      if (!bConfigSet)
+        CLog::Log(LOGERROR, "%s - libCEC couldn't set the new configuration", __FUNCTION__);
       CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), g_localizeStrings.Get(bConfigSet ? 36023 : 36024));
       {
         CSingleLock lock(m_critSection);
-        bUpdate = m_bNextConfigurationScheduled;
-        if (bUpdate)
+        if ((bUpdate = m_bNextConfigurationScheduled) == true)
         {
           // another update is scheduled
           m_bNextConfigurationScheduled = false;
@@ -1239,6 +1418,25 @@ void CPeripheralCecAdapterUpdateThread::Process(void)
       }
     }
   }
+}
+
+void CPeripheralCecAdapter::OnDeviceRemoved(void)
+{
+  CSingleLock lock(m_critSection);
+  m_bDeviceRemoved = true;
+}
+
+void CPeripheralCecAdapter::ReopenConnection(void)
+{
+  {
+    CSingleLock lock(m_critSection);
+    m_iExitCode = EXITCODE_RESTARTAPP;
+    CAnnouncementManager::RemoveAnnouncer(this);
+    StopThread(false);
+  }
+
+  StopThread();
+  Create();
 }
 
 #endif

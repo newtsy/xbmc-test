@@ -2397,11 +2397,11 @@
   <string id="36010"></string>
   <string id="36011">Kon de COM poort niet detecteren. Stel het manueel in.</string>
   <string id="36012">Kon de CEC adapter niet initialiseren.</string>
-  <string id="36013">Versie %d van de libCEC interface version wordt niet ondersteund door XBMC (> %d)</string>
-  <string id="36014">Zet XBMC in standby wanneer de TV uitgeschakeld wordt</string>
+  <string id="36013">Versie %d van de libCEC interface wordt niet ondersteund door XBMC (&lt; %d)</string>
+  <string id="36014"></string>
   <string id="36015">HDMI poort nummer</string>
   <string id="36016">Verbonden</string> <!-- max. 13 characters -->
-  <string id="36017">Adapter gevonden, maar libCEC is niet beschikbaar</string>
+  <string id="36017">Kon de CEC adapter niet initialiseren: libCEC is niet gevonden op dit systeem</string>
   <string id="36018">Gebruik de taalinstelling van de TV</string>
   <string id="36019">Verbonden met HDMI apparaat</string>
   <string id="36020">Maak XBMC de actieve bron bij het opstarten</string>
@@ -2410,4 +2410,9 @@
   <string id="36023">Configuratie aangepast</string>
   <string id="36024">Kon de nieuwe configuratie niet instellen. Controleer de instellingen.</string>
   <string id="36025">Verstuur 'inactieve bron' commando bij het stoppen</string>
+  <string id="36026">Zet apparatuur in slaapstand wanneer XBMC in slaapstand gaat</string>
+  <string id="36027">Er is een probleem geconstateerd met dit apparaat</string>
+  <string id="36028">Negeer</string>
+  <string id="36029">Wanneer de TV uitgeschakeld wordt</string>
+  <string id="36030">Verbinding verbroken</string>
 </strings>
