@@ -53,6 +53,7 @@ namespace PERIPHERALS
     const CStdString &DeviceName(void) const       { return m_strDeviceName; }
     bool IsHidden(void) const                      { return m_bHidden; }
     void SetHidden(bool bSetTo = true)             { m_bHidden = bSetTo; }
+    const CStdString &GetVersionInfo(void) const   { return m_strVersionInfo; }
 
     /*!
      * @brief Check whether this device has the given feature.
@@ -161,6 +162,7 @@ namespace PERIPHERALS
     CStdString                       m_strVendorId;
     int                              m_iProductId;
     CStdString                       m_strProductId;
+    CStdString                       m_strVersionInfo;
     bool                             m_bInitialised;
     bool                             m_bHidden;
     bool                             m_bError;

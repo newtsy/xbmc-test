@@ -2139,7 +2139,7 @@
   <string id="36011">אין אפשרות לזהות פורט CEC. הגדר זאת ידנית.</string>
   <string id="36012">אין אפשרות לאתחל מתאם CEC. בדוק את ההגדרות שלך</string>
   <string id="36013">ממשק libCEC  לא נתמך. %d גדול יותר מאשר הגרסא ש- XBMC תומך (%d)</string>
-  <string id="36014">הכנס את המחשב למצב המתנה כאשר הטלוויזיה נכבית</string>
+  <string id="36014"></string>
   <string id="36015">מספר פורט HDMI</string>
   <string id="36016">מחובר</string>
   <string id="36017">מתאם נמצא. אבל libCEC לא זמין</string>

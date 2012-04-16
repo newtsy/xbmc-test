@@ -26,6 +26,7 @@
 #include "settings/GUISettings.h"
 #include "lib/tinyXML/tinyxml.h"
 #include "utils/URIUtils.h"
+#include "guilib/LocalizeStrings.h"
 
 using namespace PERIPHERALS;
 using namespace std;
@@ -46,6 +47,7 @@ CPeripheral::CPeripheral(const PeripheralType type, const PeripheralBusType busT
   m_strFileLocation(StringUtils::EmptyString),
   m_iVendorId(iVendorId),
   m_iProductId(iProductId),
+  m_strVersionInfo(g_localizeStrings.Get(13205)), // "unknown"
   m_bInitialised(false),
   m_bHidden(false),
   m_bError(false)
@@ -65,8 +67,10 @@ CPeripheral::CPeripheral(void) :
   m_strVendorId("0000"),
   m_iProductId(0),
   m_strProductId("0000"),
+  m_strVersionInfo(g_localizeStrings.Get(13205)), // "unknown"
   m_bInitialised(false),
-  m_bHidden(false)
+  m_bHidden(false),
+  m_bError(false)
 {
 }
 
