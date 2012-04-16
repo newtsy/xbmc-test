@@ -1133,9 +1133,6 @@ void CPeripheralCecAdapter::SetConfigurationFromSettings(void)
   m_configuration.powerOffDevices.Clear();
   ReadLogicalAddresses(strStandbyDevices, m_configuration.powerOffDevices);
 
-  // always get the settings from the rom, when supported by the firmware
-  m_configuration.bGetSettingsFromROM = 1;
-
   // read the boolean settings
   m_configuration.bUseTVMenuLanguage   = GetSettingBool("use_tv_menu_language") ? 1 : 0;
   m_configuration.bActivateSource      = GetSettingBool("activate_source") ? 1 : 0;
