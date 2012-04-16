@@ -41,7 +41,7 @@ using namespace PERIPHERALS;
 using namespace ANNOUNCEMENT;
 using namespace CEC;
 
-#define CEC_LIB_SUPPORTED_VERSION 0x1500
+#define CEC_LIB_SUPPORTED_VERSION 0x1600
 
 /* time in seconds to ignore standby commands from devices after the screensaver has been activated */
 #define SCREENSAVER_TIMEOUT       10
