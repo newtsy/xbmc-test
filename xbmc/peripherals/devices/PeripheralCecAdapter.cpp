@@ -122,7 +122,17 @@ void CPeripheralCecAdapter::Announce(EAnnouncementFlag flag, const char *sender,
   }
   else if (flag == GUI && !strcmp(sender, "xbmc") && !strcmp(message, "OnScreensaverDeactivated") && m_bIsReady)
   {
-    if (m_configuration.bPowerOffScreensaver == 1)
+    bool bIgnoreDeactivate(false);
+    if (data.isBoolean())
+    {
+      // don't respond to the deactivation if we are just going to suspend/shutdown anyway
+      // the tv will not have time to switch on before being told to standby and
+      // may not action the standby command.
+      bIgnoreDeactivate = data.asBoolean();
+      if (bIgnoreDeactivate)
+        CLog::Log(LOGDEBUG, "%s - ignoring OnScreensaverDeactivated for power action", __FUNCTION__);
+    }
+    if (m_configuration.bPowerOffScreensaver == 1 && !bIgnoreDeactivate)
     {
       // power off/on on screensaver is set, and devices to wake are set
       if (!m_configuration.wakeDevices.IsEmpty())
