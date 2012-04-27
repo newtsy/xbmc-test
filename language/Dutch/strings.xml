@@ -2410,4 +2410,9 @@
   <string id="36023">Configuratie aangepast</string>
   <string id="36024">Kon de nieuwe configuratie niet instellen. Controleer de instellingen.</string>
   <string id="36025">Verstuur 'inactieve bron' commando bij het stoppen</string>
+  <string id="36026">Zet apparatuur in slaapstand wanneer XBMC in slaapstand gaat</string>
+  <string id="36027">Er is een probleem geconstateerd met dit apparaat</string>
+  <string id="36028">Negeer</string>
+  <string id="36029">Wanneer de TV uitgeschakeld wordt</string>
+  <string id="36030">Verbinding verbroken</string>
 </strings>

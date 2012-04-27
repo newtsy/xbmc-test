@@ -90,28 +90,29 @@ namespace PERIPHERALS
     CPeripheralCecAdapter(const PeripheralType type, const PeripheralBusType busType, const CStdString &strLocation, const CStdString &strDeviceName, int iVendorId, int iProductId);
     virtual ~CPeripheralCecAdapter(void);
 
-    virtual void Announce(ANNOUNCEMENT::AnnouncementFlag flag, const char *sender, const char *message, const CVariant &data);
-    virtual bool HasConnectedAudioSystem(void);
-    virtual void SetAudioSystemConnected(bool bSetTo);
-    virtual void ScheduleVolumeUp(void);
-    virtual void VolumeUp(void);
-    virtual void ScheduleVolumeDown(void);
-    virtual void VolumeDown(void);
-    virtual void ScheduleMute(void);
-    virtual void Mute(void);
-    virtual bool IsMuted(void);
+    void Announce(ANNOUNCEMENT::AnnouncementFlag flag, const char *sender, const char *message, const CVariant &data);
+    bool HasConnectedAudioSystem(void);
+    void SetAudioSystemConnected(bool bSetTo);
+    void ScheduleVolumeUp(void);
+    void VolumeUp(void);
+    void ScheduleVolumeDown(void);
+    void VolumeDown(void);
+    void ScheduleMute(void);
+    void Mute(void);
+    bool IsMuted(void);
 
-    virtual void OnSettingChanged(const CStdString &strChangedSetting);
+    void OnSettingChanged(const CStdString &strChangedSetting);
+    void OnDeviceRemoved(void);
 
-    virtual int GetButton(void);
-    virtual unsigned int GetHoldTime(void);
-    virtual void ResetButton(void);
-    virtual CStdString GetComPort(void);
+    int GetButton(void);
+    unsigned int GetHoldTime(void);
+    void ResetButton(void);
+    CStdString GetComPort(void);
 
   protected:
-    virtual bool OpenConnection(void);
-    virtual void SetConfigurationFromSettings(void);
-    virtual void SetConfigurationFromLibCEC(const CEC::libcec_configuration &config);
+    bool OpenConnection(void);
+    void SetConfigurationFromSettings(void);
+    void SetConfigurationFromLibCEC(const CEC::libcec_configuration &config);
     void SetVersionInfo(const CEC::libcec_configuration &configuration);
     static void ReadLogicalAddresses(const CStdString &strString, CEC::cec_logical_addresses &addresses);
     static int CecKeyPress(void *cbParam, const CEC::cec_keypress &key);
@@ -120,13 +121,14 @@ namespace PERIPHERALS
     static int CecConfiguration(void *cbParam, const CEC::libcec_configuration &config);
     static int CecAlert(void *cbParam, const CEC::libcec_alert alert, const CEC::libcec_parameter &data);
     bool IsRunning(void) const;
+    void ReopenConnection(void);
 
-    virtual bool GetNextKey(void);
-    virtual bool GetNextCecKey(CEC::cec_keypress &key);
-    virtual bool InitialiseFeature(const PeripheralFeature feature);
-    virtual void Process(void);
-    virtual void ProcessVolumeChange(void);
-    virtual void SetMenuLanguage(const char *strLanguage);
+    bool GetNextKey(void);
+    bool GetNextCecKey(CEC::cec_keypress &key);
+    bool InitialiseFeature(const PeripheralFeature feature);
+    void Process(void);
+    void ProcessVolumeChange(void);
+    void SetMenuLanguage(const char *strLanguage);
     static bool FindConfigLocation(CStdString &strString);
     static bool TranslateComPort(CStdString &strPort);
 
@@ -147,6 +149,7 @@ namespace PERIPHERALS
     bool                              m_bIsMuted;
     bool                              m_bGoingToStandby;
     bool                              m_bIsRunning;
+    bool                              m_bDeviceRemoved;
     CPeripheralCecAdapterUpdateThread*m_queryThread;
     CEC::ICECCallbacks                m_callbacks;
     CCriticalSection                  m_critSection;
@@ -159,13 +162,13 @@ namespace PERIPHERALS
     CPeripheralCecAdapterUpdateThread(CPeripheralCecAdapter *adapter, CEC::libcec_configuration *configuration);
     virtual ~CPeripheralCecAdapterUpdateThread(void);
 
-    virtual void Signal(void);
-    virtual bool UpdateConfiguration(CEC::libcec_configuration *configuration);
+    void Signal(void);
+    bool UpdateConfiguration(CEC::libcec_configuration *configuration);
 
   protected:
-    virtual bool WaitReady(void);
-    virtual bool SetInitialConfiguration(void);
-    virtual void Process(void);
+    bool WaitReady(void);
+    bool SetInitialConfiguration(void);
+    void Process(void);
 
     CPeripheralCecAdapter *    m_adapter;
     CEvent                     m_event;
