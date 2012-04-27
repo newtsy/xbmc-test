@@ -110,11 +110,14 @@ namespace PERIPHERALS
     virtual bool OpenConnection(void);
     virtual void SetConfigurationFromSettings(void);
     virtual void SetConfigurationFromLibCEC(const CEC::libcec_configuration &config);
+    void SetVersionInfo(const CEC::libcec_configuration &configuration);
     static void ReadLogicalAddresses(const CStdString &strString, CEC::cec_logical_addresses &addresses);
     static int CecKeyPress(void *cbParam, const CEC::cec_keypress &key);
     static int CecLogMessage(void *cbParam, const CEC::cec_log_message &message);
     static int CecCommand(void *cbParam, const CEC::cec_command &command);
     static int CecConfiguration(void *cbParam, const CEC::libcec_configuration &config);
+    static int CecAlert(void *cbParam, const CEC::libcec_alert alert, const CEC::libcec_parameter &data);
+    bool IsRunning(void) const;
 
     virtual bool GetNextKey(void);
     virtual bool GetNextCecKey(CEC::cec_keypress &key);
@@ -140,6 +143,8 @@ namespace PERIPHERALS
     CecVolumeChange                   m_lastChange;
     int                               m_iExitCode;
     bool                              m_bIsMuted;
+    bool                              m_bGoingToStandby;
+    bool                              m_bIsRunning;
     CPeripheralCecAdapterUpdateThread*m_queryThread;
     CEC::ICECCallbacks                m_callbacks;
     CCriticalSection                  m_critSection;
