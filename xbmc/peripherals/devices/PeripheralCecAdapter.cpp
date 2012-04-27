@@ -72,6 +72,8 @@ class DllLibCEC : public DllDynamic, DllLibCECInterface
 CPeripheralCecAdapter::CPeripheralCecAdapter(const PeripheralType type, const PeripheralBusType busType, const CStdString &strLocation, const CStdString &strDeviceName, int iVendorId, int iProductId) :
   CPeripheralHID(type, busType, strLocation, strDeviceName, iVendorId, iProductId),
   CThread("CEC Adapter"),
+  m_dll(NULL),
+  m_cecAdapter(NULL),
   m_bStarted(false),
   m_bHasButton(false),
   m_bIsReady(false),
@@ -196,7 +198,14 @@ bool CPeripheralCecAdapter::InitialiseFeature(const PeripheralFeature feature)
     if (m_dll->Load() && m_dll->IsLoaded())
       m_cecAdapter = m_dll->CECInitialise(&m_configuration);
     else
+    {
+      CLog::Log(LOGERROR, "%s", g_localizeStrings.Get(36017).c_str());
+      CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Error, g_localizeStrings.Get(36000), g_localizeStrings.Get(36029));
+      delete m_dll;
+      m_dll = NULL;
+      m_features.clear();
       return false;
+    }
 
     if (m_configuration.serverVersion < CEC_LIB_SUPPORTED_VERSION)
     {
