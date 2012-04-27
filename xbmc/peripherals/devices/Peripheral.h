@@ -133,18 +133,18 @@ namespace PERIPHERALS
      * @return The value or an empty string if it wasn't found.
      */
     virtual const CStdString GetSettingString(const CStdString &strKey) const;
-    virtual void SetSetting(const CStdString &strKey, const CStdString &strValue);
+    virtual bool SetSetting(const CStdString &strKey, const CStdString &strValue);
     virtual void SetSettingVisible(const CStdString &strKey, bool bSetTo);
     virtual bool IsSettingVisible(const CStdString &strKey) const;
 
     virtual int GetSettingInt(const CStdString &strKey) const;
-    virtual void SetSetting(const CStdString &strKey, int iValue);
+    virtual bool SetSetting(const CStdString &strKey, int iValue);
 
     virtual bool GetSettingBool(const CStdString &strKey) const;
-    virtual void SetSetting(const CStdString &strKey, bool bValue);
+    virtual bool SetSetting(const CStdString &strKey, bool bValue);
 
     virtual float GetSettingFloat(const CStdString &strKey) const;
-    virtual void SetSetting(const CStdString &strKey, float fValue);
+    virtual bool SetSetting(const CStdString &strKey, float fValue);
 
     virtual void PersistSettings(bool bExiting = false);
     virtual void LoadPersistedSettings(void);
