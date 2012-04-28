@@ -2,14 +2,14 @@ include ../Makefile.include
 
 # lib name, version
 LIBNAME=libcec
-VERSION=1.6.0
+VERSION=latest
 SOURCE=$(LIBNAME)-$(VERSION)
-ARCHIVE=$(SOURCE).tar.gz
+ARCHIVE=$(SOURCE).tar.bz2
 
 # configuration settings
 CONFIGURE=./configure --prefix=$(PREFIX)
 
-LIBDYLIB=$(SOURCE)/.libs/$(LIBNAME).dylib
+LIBDYLIB=$(LIBNAME)/.libs/$(LIBNAME).dylib
 
 all: $(LIBDYLIB) .installed
 
@@ -17,22 +17,22 @@ $(TARBALLS_LOCATION)/$(ARCHIVE):
 	$(RETRIEVE_TOOL) $(RETRIEVE_TOOL_FLAGS) $(BASE_URL)/$(ARCHIVE)
 
 $(LIBNAME): $(TARBALLS_LOCATION)/$(ARCHIVE)
-	rm -rf $(SOURCE)
+	rm -rf $(LIBNAME)
 	$(ARCHIVE_TOOL) $(ARCHIVE_TOOL_FLAGS) $(TARBALLS_LOCATION)/$(ARCHIVE)
-	echo $(SOURCE) > .gitignore
-	cd $(SOURCE); autoreconf -vif
-	cd $(SOURCE); $(CONFIGURE)
+	echo $(LIBNAME) > .gitignore
+	cd $(LIBNAME); autoreconf -vif
+	cd $(LIBNAME); $(CONFIGURE)
 
 $(LIBDYLIB): $(LIBNAME)
-	make -j 1 -C $(SOURCE)
+	make -j 1 -C $(LIBNAME)
 
 .installed:
-	make -C $(SOURCE) install
+	make -C $(LIBNAME) install
 	touch $@
 
 clean:
-	rm -rf $(SOURCE) .installed
+	rm -rf $(LIBNAME) .installed
 
 distclean::
-	rm -rf $(SOURCE) .installed
+	rm -rf $(LIBNAME) .installed
 
