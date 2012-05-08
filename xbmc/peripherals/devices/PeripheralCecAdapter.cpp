@@ -697,8 +697,6 @@ int CPeripheralCecAdapter::CecConfiguration(void *cbParam, const libcec_configur
 
 int CPeripheralCecAdapter::CecAlert(void *cbParam, const libcec_alert alert, const libcec_parameter &data)
 {
-  (void)data;
-
   CPeripheralCecAdapter *adapter = (CPeripheralCecAdapter *)cbParam;
   if (!adapter)
     return 0;
@@ -720,7 +718,12 @@ int CPeripheralCecAdapter::CecAlert(void *cbParam, const libcec_alert alert, con
 
   // display the alert
   if (iAlertString)
-    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), g_localizeStrings.Get(iAlertString));
+  {
+    CStdString strLog(g_localizeStrings.Get(iAlertString));
+    if (data.paramType == CEC_PARAMETER_TYPE_STRING && data.paramData)
+      strLog.AppendFormat(" - %s", (const char *)data.paramData);
+    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), strLog);
+  }
 
   if (bReopenConnection)
     adapter->ReopenConnection();
