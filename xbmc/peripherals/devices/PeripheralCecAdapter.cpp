@@ -1308,20 +1308,8 @@ bool CPeripheralCecAdapterUpdateThread::WaitReady(void)
   return powerStatus == CEC_POWER_STATUS_ON;
 }
 
-bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
+void CPeripheralCecAdapterUpdateThread::UpdateMenuLanguage(void)
 {
-  // devices to wake are set
-  if (!m_configuration.wakeDevices.IsEmpty())
-    m_adapter->m_cecAdapter->PowerOnDevices(CECDEVICE_BROADCAST);
-
-  // the option to make XBMC the active source is set
-  if (m_configuration.bActivateSource == 1)
-    m_adapter->m_cecAdapter->SetActiveSource();
-
-  // wait until devices are powered up
-  if (!WaitReady())
-    return false;
-
   // request the menu language of the TV
   if (m_configuration.bUseTVMenuLanguage == 1)
   {
@@ -1336,26 +1324,60 @@ bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
   {
     CLog::Log(LOGDEBUG, "%s - using TV menu language is disabled", __FUNCTION__);
   }
+}
 
-  // request the OSD name of the TV
-  CStdString strNotification;
-  cec_osd_name tvName = m_adapter->m_cecAdapter->GetDeviceOSDName(CECDEVICE_TV);
-  strNotification.Format("%s: %s", g_localizeStrings.Get(36016), tvName.name);
+CStdString CPeripheralCecAdapterUpdateThread::UpdateAudioSystemStatus(void)
+{
+  CStdString strAmpName;
 
   /* disable the mute setting when an amp is found, because the amp handles the mute setting and
-     set PCM output to 100% */
+       set PCM output to 100% */
   if (m_adapter->m_cecAdapter->IsActiveDeviceType(CEC_DEVICE_TYPE_AUDIO_SYSTEM))
   {
     // request the OSD name of the amp
     cec_osd_name ampName = m_adapter->m_cecAdapter->GetDeviceOSDName(CECDEVICE_AUDIOSYSTEM);
     CLog::Log(LOGDEBUG, "%s - CEC capable amplifier found (%s). volume will be controlled on the amp", __FUNCTION__, ampName.name);
-    strNotification.AppendFormat(" - %s", ampName.name);
+    strAmpName.AppendFormat("%s", ampName.name);
 
     // set amp present
     m_adapter->SetAudioSystemConnected(true);
     g_settings.m_bMute = false;
     g_settings.m_nVolumeLevel = VOLUME_MAXIMUM;
   }
+  else
+  {
+    // set amp present
+    CLog::Log(LOGDEBUG, "%s - no CEC capable amplifier found", __FUNCTION__);
+    m_adapter->SetAudioSystemConnected(false);
+  }
+
+  return strAmpName;
+}
+
+bool CPeripheralCecAdapterUpdateThread::SetInitialConfiguration(void)
+{
+  // devices to wake are set
+  if (!m_configuration.wakeDevices.IsEmpty())
+    m_adapter->m_cecAdapter->PowerOnDevices(CECDEVICE_BROADCAST);
+
+  // the option to make XBMC the active source is set
+  if (m_configuration.bActivateSource == 1)
+    m_adapter->m_cecAdapter->SetActiveSource();
+
+  // wait until devices are powered up
+  if (!WaitReady())
+    return false;
+
+  UpdateMenuLanguage();
+
+  // request the OSD name of the TV
+  CStdString strNotification;
+  cec_osd_name tvName = m_adapter->m_cecAdapter->GetDeviceOSDName(CECDEVICE_TV);
+  strNotification.Format("%s: %s", g_localizeStrings.Get(36016), tvName.name);
+
+  CStdString strAmpName = UpdateAudioSystemStatus();
+  if (!strAmpName.empty())
+    strNotification.AppendFormat("- %s", strAmpName.c_str());
 
   m_adapter->m_bIsReady = true;
 
@@ -1403,7 +1425,14 @@ void CPeripheralCecAdapterUpdateThread::Process(void)
       // display message: config updated / failed to update
       if (!bConfigSet)
         CLog::Log(LOGERROR, "%s - libCEC couldn't set the new configuration", __FUNCTION__);
+      else
+      {
+        UpdateMenuLanguage();
+        UpdateAudioSystemStatus();
+      }
+
       CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(36000), g_localizeStrings.Get(bConfigSet ? 36023 : 36024));
+
       {
         CSingleLock lock(m_critSection);
         if ((bUpdate = m_bNextConfigurationScheduled) == true)

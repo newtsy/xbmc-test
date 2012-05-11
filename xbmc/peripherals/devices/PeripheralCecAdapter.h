@@ -164,6 +164,8 @@ namespace PERIPHERALS
     bool UpdateConfiguration(CEC::libcec_configuration *configuration);
 
   protected:
+    void UpdateMenuLanguage(void);
+    CStdString UpdateAudioSystemStatus(void);
     bool WaitReady(void);
     bool SetInitialConfiguration(void);
     void Process(void);
