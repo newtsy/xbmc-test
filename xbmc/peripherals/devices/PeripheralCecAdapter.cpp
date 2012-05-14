@@ -710,6 +710,16 @@ int CPeripheralCecAdapter::CecAlert(void *cbParam, const libcec_alert alert, con
     bReopenConnection = true;
     iAlertString = 36030;
     break;
+#if defined(CEC_ALERT_PERMISSION_ERROR)
+  case CEC_ALERT_PERMISSION_ERROR:
+    bReopenConnection = true;
+    iAlertString = 36031;
+    break;
+  case CEC_ALERT_PORT_BUSY:
+    bReopenConnection = true;
+    iAlertString = 36032;
+    break;
+#endif
   default:
     break;
   }

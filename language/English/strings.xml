@@ -2876,4 +2876,6 @@
   <string id="36028">Ignore</string>
   <string id="36029">When the TV is switched off</string>
   <string id="36030">Connection lost</string>
+  <string id="36031">This user does not have permissions to open the CEC adapter</string>
+  <string id="36032">The port is busy. Only one program can access the CEC adapter</string>
 </strings>
