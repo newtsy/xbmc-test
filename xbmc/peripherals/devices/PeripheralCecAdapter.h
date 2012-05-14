@@ -107,6 +107,8 @@ namespace PERIPHERALS
     void ResetButton(void);
     CStdString GetComPort(void);
 
+    void PushCecKeypress(const CEC::cec_keypress &key);
+
   protected:
     bool OpenConnection(void);
     void SetConfigurationFromSettings(void);
@@ -114,6 +116,7 @@ namespace PERIPHERALS
     void SetVersionInfo(const CEC::libcec_configuration &configuration);
     static void ReadLogicalAddresses(const CStdString &strString, CEC::cec_logical_addresses &addresses);
     static int CecKeyPress(void *cbParam, const CEC::cec_keypress &key);
+    void PushCecKeypress(const CecButtonPress &key);
     static int CecLogMessage(void *cbParam, const CEC::cec_log_message &message);
     static int CecCommand(void *cbParam, const CEC::cec_command &command);
     static int CecConfiguration(void *cbParam, const CEC::libcec_configuration &config);
@@ -121,8 +124,7 @@ namespace PERIPHERALS
     bool IsRunning(void) const;
     void ReopenConnection(void);
 
-    bool GetNextKey(void);
-    bool GetNextCecKey(CEC::cec_keypress &key);
+    void GetNextKey(void);
     bool InitialiseFeature(const PeripheralFeature feature);
     void Process(void);
     void ProcessVolumeChange(void);
@@ -138,8 +140,8 @@ namespace PERIPHERALS
     bool                              m_bHasConnectedAudioSystem;
     CStdString                        m_strMenuLanguage;
     CDateTime                         m_screensaverLastActivated;
-    CecButtonPress                    m_button;
-    std::queue<CEC::cec_keypress>     m_buttonQueue;
+    std::vector<CecButtonPress>       m_buttonQueue;
+    CecButtonPress                    m_currentButton;
     std::queue<CecVolumeChange>       m_volumeChangeQueue;
     unsigned int                      m_lastKeypress;
     CecVolumeChange                   m_lastChange;

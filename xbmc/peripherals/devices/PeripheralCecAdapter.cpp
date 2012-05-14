@@ -40,6 +40,7 @@
 using namespace PERIPHERALS;
 using namespace ANNOUNCEMENT;
 using namespace CEC;
+using namespace std;
 
 #define CEC_LIB_SUPPORTED_VERSION 0x1602
 
@@ -87,8 +88,8 @@ CPeripheralCecAdapter::CPeripheralCecAdapter(const PeripheralType type, const Pe
   m_bIsRunning(false),
   m_bDeviceRemoved(false)
 {
-  m_button.iButton = 0;
-  m_button.iDuration = 0;
+  m_currentButton.iButton = 0;
+  m_currentButton.iDuration = 0;
   m_screensaverLastActivated.SetValid(false);
 
   m_configuration.Clear();
@@ -648,11 +649,10 @@ int CPeripheralCecAdapter::CecCommand(void *cbParam, const cec_command &command)
           command.parameters.size == 1 &&
           command.parameters[0] == CEC_DECK_CONTROL_MODE_STOP)
       {
-        CSingleLock lock(adapter->m_critSection);
         cec_keypress key;
         key.duration = 500;
         key.keycode = CEC_USER_CONTROL_CODE_STOP;
-        adapter->m_buttonQueue.push(key);
+        adapter->PushCecKeypress(key);
       }
       break;
     case CEC_OPCODE_PLAY:
@@ -661,19 +661,17 @@ int CPeripheralCecAdapter::CecCommand(void *cbParam, const cec_command &command)
       {
         if (command.parameters[0] == CEC_PLAY_MODE_PLAY_FORWARD)
         {
-          CSingleLock lock(adapter->m_critSection);
           cec_keypress key;
           key.duration = 500;
           key.keycode = CEC_USER_CONTROL_CODE_PLAY;
-          adapter->m_buttonQueue.push(key);
+          adapter->PushCecKeypress(key);
         }
         else if (command.parameters[0] == CEC_PLAY_MODE_PLAY_STILL)
         {
-          CSingleLock lock(adapter->m_critSection);
           cec_keypress key;
           key.duration = 500;
           key.keycode = CEC_USER_CONTROL_CODE_PAUSE;
-          adapter->m_buttonQueue.push(key);
+          adapter->PushCecKeypress(key);
         }
       }
       break;
@@ -737,197 +735,284 @@ int CPeripheralCecAdapter::CecKeyPress(void *cbParam, const cec_keypress &key)
   if (!adapter)
     return 0;
 
-  CSingleLock lock(adapter->m_critSection);
-  adapter->m_buttonQueue.push(key);
+  adapter->PushCecKeypress(key);
   return 1;
 }
 
-bool CPeripheralCecAdapter::GetNextCecKey(cec_keypress &key)
+void CPeripheralCecAdapter::GetNextKey(void)
 {
-  bool bReturn(false);
   CSingleLock lock(m_critSection);
-  if (!m_buttonQueue.empty())
+  m_bHasButton = false;
+  if (m_bIsReady)
   {
-    key = m_buttonQueue.front();
-    m_buttonQueue.pop();
-    bReturn = true;
+    vector<CecButtonPress>::iterator it = m_buttonQueue.begin();
+    if (it != m_buttonQueue.end())
+    {
+      m_currentButton = (*it);
+      m_buttonQueue.erase(it);
+      m_bHasButton = true;
+    }
   }
-
-  return bReturn;
 }
 
-bool CPeripheralCecAdapter::GetNextKey(void)
+void CPeripheralCecAdapter::PushCecKeypress(const CecButtonPress &key)
 {
-  bool bHasButton(false);
+  CLog::Log(LOGDEBUG, "%s - received key %2x duration %d", __FUNCTION__, key.iButton, key.iDuration);
+
   CSingleLock lock(m_critSection);
-  if (m_bHasButton && m_button.iDuration > 0)
-    return bHasButton;
+  if (key.iDuration > 0)
+  {
+    if (m_currentButton.iButton == key.iButton && m_currentButton.iDuration == 0)
+    {
+      // update the duration
+      if (m_bHasButton)
+        m_currentButton.iDuration = key.iDuration;
+      // ignore this one, since it's already been handled by xbmc
+      return;
+    }
+    // if we received a keypress with a duration set, try to find the same one without a duration set, and replace it
+    for (vector<CecButtonPress>::reverse_iterator it = m_buttonQueue.rbegin(); it != m_buttonQueue.rend(); it++)
+    {
+      if ((*it).iButton == key.iButton)
+      {
+        if ((*it).iDuration == 0)
+        {
+          // replace this entry
+          (*it).iDuration = key.iDuration;
+          return;
+        }
+        // add a new entry
+        break;
+      }
+    }
+  }
 
-  cec_keypress key;
-  if (!m_bIsReady || !GetNextCecKey(key))
-    return bHasButton;
+  m_buttonQueue.push_back(key);
+}
 
-  CLog::Log(LOGDEBUG, "%s - received key %2x", __FUNCTION__, key.keycode);
-  WORD iButton = 0;
-  bHasButton = true;
+void CPeripheralCecAdapter::PushCecKeypress(const cec_keypress &key)
+{
+  CecButtonPress xbmcKey;
+  xbmcKey.iDuration = key.duration;
 
   switch (key.keycode)
   {
   case CEC_USER_CONTROL_CODE_SELECT:
-    iButton = XINPUT_IR_REMOTE_SELECT;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_SELECT;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_UP:
-    iButton = XINPUT_IR_REMOTE_UP;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_UP;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_DOWN:
-    iButton = XINPUT_IR_REMOTE_DOWN;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_DOWN;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_LEFT:
+    xbmcKey.iButton = XINPUT_IR_REMOTE_LEFT;
+    PushCecKeypress(xbmcKey);
+    break;
   case CEC_USER_CONTROL_CODE_LEFT_UP:
+    xbmcKey.iButton = XINPUT_IR_REMOTE_LEFT;
+    PushCecKeypress(xbmcKey);
+    xbmcKey.iButton = XINPUT_IR_REMOTE_UP;
+    PushCecKeypress(xbmcKey);
+    break;
   case CEC_USER_CONTROL_CODE_LEFT_DOWN:
-    iButton = XINPUT_IR_REMOTE_LEFT;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_LEFT;
+    PushCecKeypress(xbmcKey);
+    xbmcKey.iButton = XINPUT_IR_REMOTE_DOWN;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_RIGHT:
+    xbmcKey.iButton = XINPUT_IR_REMOTE_RIGHT;
+    PushCecKeypress(xbmcKey);
+    break;
   case CEC_USER_CONTROL_CODE_RIGHT_UP:
+    xbmcKey.iButton = XINPUT_IR_REMOTE_RIGHT;
+    PushCecKeypress(xbmcKey);
+    xbmcKey.iButton = XINPUT_IR_REMOTE_UP;
+    PushCecKeypress(xbmcKey);
+    break;
   case CEC_USER_CONTROL_CODE_RIGHT_DOWN:
-    iButton = XINPUT_IR_REMOTE_RIGHT;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_RIGHT;
+    PushCecKeypress(xbmcKey);
+    xbmcKey.iButton = XINPUT_IR_REMOTE_DOWN;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_SETUP_MENU:
   case CEC_USER_CONTROL_CODE_CONTENTS_MENU:
   case CEC_USER_CONTROL_CODE_FAVORITE_MENU:
   case CEC_USER_CONTROL_CODE_ROOT_MENU:
-    iButton = XINPUT_IR_REMOTE_MENU;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_MENU;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_EXIT:
-    iButton = XINPUT_IR_REMOTE_BACK;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_BACK;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_ENTER:
-    iButton = XINPUT_IR_REMOTE_ENTER;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_ENTER;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_CHANNEL_DOWN:
-    iButton = XINPUT_IR_REMOTE_CHANNEL_MINUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_CHANNEL_MINUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_CHANNEL_UP:
-    iButton = XINPUT_IR_REMOTE_CHANNEL_PLUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_CHANNEL_PLUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_PREVIOUS_CHANNEL:
 #if defined(XINPUT_IR_REMOTE_TELETEXT)
-    iButton = XINPUT_IR_REMOTE_TELETEXT; // only supported by the pvr branch
+    xbmcKey.iButton = XINPUT_IR_REMOTE_TELETEXT; // only supported by the pvr branch
 #else
-    iButton = XINPUT_IR_REMOTE_BACK;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_BACK;
 #endif
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_SOUND_SELECT:
-    iButton = XINPUT_IR_REMOTE_LANGUAGE;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_LANGUAGE;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_POWER:
-    iButton = XINPUT_IR_REMOTE_POWER;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_POWER;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_VOLUME_UP:
-    iButton = XINPUT_IR_REMOTE_VOLUME_PLUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_VOLUME_PLUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_VOLUME_DOWN:
-    iButton = XINPUT_IR_REMOTE_VOLUME_MINUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_VOLUME_MINUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_MUTE:
-    iButton = XINPUT_IR_REMOTE_MUTE;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_MUTE;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_PLAY:
-    iButton = XINPUT_IR_REMOTE_PLAY;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_PLAY;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_STOP:
-    iButton = XINPUT_IR_REMOTE_STOP;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_STOP;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_PAUSE:
-    iButton = XINPUT_IR_REMOTE_PAUSE;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_PAUSE;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_REWIND:
-    iButton = XINPUT_IR_REMOTE_REVERSE;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_REVERSE;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_FAST_FORWARD:
-    iButton = XINPUT_IR_REMOTE_FORWARD;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_FORWARD;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER0:
-    iButton = XINPUT_IR_REMOTE_0;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_0;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER1:
-    iButton = XINPUT_IR_REMOTE_1;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_1;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER2:
-    iButton = XINPUT_IR_REMOTE_2;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_2;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER3:
-    iButton = XINPUT_IR_REMOTE_3;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_3;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER4:
-    iButton = XINPUT_IR_REMOTE_4;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_4;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER5:
-    iButton = XINPUT_IR_REMOTE_5;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_5;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER6:
-    iButton = XINPUT_IR_REMOTE_6;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_6;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER7:
-    iButton = XINPUT_IR_REMOTE_7;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_7;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER8:
-    iButton = XINPUT_IR_REMOTE_8;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_8;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_NUMBER9:
-    iButton = XINPUT_IR_REMOTE_9;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_9;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_RECORD:
-    iButton = XINPUT_IR_REMOTE_RECORD;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_RECORD;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_CLEAR:
-    iButton = XINPUT_IR_REMOTE_CLEAR;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_CLEAR;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_DISPLAY_INFORMATION:
-    iButton = XINPUT_IR_REMOTE_INFO;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_INFO;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_PAGE_UP:
-    iButton = XINPUT_IR_REMOTE_CHANNEL_PLUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_CHANNEL_PLUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_PAGE_DOWN:
-    iButton = XINPUT_IR_REMOTE_CHANNEL_MINUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_CHANNEL_MINUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_FORWARD:
-    iButton = XINPUT_IR_REMOTE_SKIP_PLUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_SKIP_PLUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_BACKWARD:
-    iButton = XINPUT_IR_REMOTE_SKIP_MINUS;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_SKIP_MINUS;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_F1_BLUE:
-    iButton = XINPUT_IR_REMOTE_BLUE;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_BLUE;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_F2_RED:
-    iButton = XINPUT_IR_REMOTE_RED;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_RED;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_F3_GREEN:
-    iButton = XINPUT_IR_REMOTE_GREEN;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_GREEN;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_F4_YELLOW:
-    iButton = XINPUT_IR_REMOTE_YELLOW;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_YELLOW;
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_ELECTRONIC_PROGRAM_GUIDE:
 #if defined(XINPUT_IR_REMOTE_GUIDE)
-    iButton = XINPUT_IR_REMOTE_GUIDE;
-#else
-    bHasButton = false;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_GUIDE;
+    PushCecKeypress(xbmcKey);
 #endif
     break;
   case CEC_USER_CONTROL_CODE_AN_CHANNELS_LIST:
 #if defined(XINPUT_IR_REMOTE_LIVE_TV)
-    iButton = XINPUT_IR_REMOTE_LIVE_TV;
-#else
-    bHasButton = false;
+    xbmcKey.iButton = XINPUT_IR_REMOTE_LIVE_TV;
+    PushCecKeypress(xbmcKey);
 #endif
     break;
   case CEC_USER_CONTROL_CODE_NEXT_FAVORITE:
   case CEC_USER_CONTROL_CODE_DOT:
   case CEC_USER_CONTROL_CODE_AN_RETURN:
-    iButton = XINPUT_IR_REMOTE_TITLE; // context menu
+    xbmcKey.iButton = XINPUT_IR_REMOTE_TITLE; // context menu
+    PushCecKeypress(xbmcKey);
     break;
   case CEC_USER_CONTROL_CODE_POWER_ON_FUNCTION:
   case CEC_USER_CONTROL_CODE_EJECT:
@@ -957,24 +1042,8 @@ bool CPeripheralCecAdapter::GetNextKey(void)
   case CEC_USER_CONTROL_CODE_DATA:
   case CEC_USER_CONTROL_CODE_UNKNOWN:
   default:
-    bHasButton = false;
-    return bHasButton;
+    break;
   }
-
-  if (!m_bHasButton && bHasButton && iButton == m_button.iButton && m_button.iDuration == 0 && key.duration > 0)
-  {
-    /* released button of the previous keypress */
-    return m_bHasButton;
-  }
-
-  if (bHasButton)
-  {
-    m_bHasButton = true;
-    m_button.iDuration = key.duration;
-    m_button.iButton = iButton;
-  }
-
-  return m_bHasButton;
 }
 
 WORD CPeripheralCecAdapter::GetButton(void)
@@ -983,22 +1052,29 @@ WORD CPeripheralCecAdapter::GetButton(void)
   if (!m_bHasButton)
     GetNextKey();
 
-  return m_bHasButton ? m_button.iButton : 0;
+  return m_bHasButton ? m_currentButton.iButton : 0;
 }
 
 unsigned int CPeripheralCecAdapter::GetHoldTime(void)
 {
   CSingleLock lock(m_critSection);
-  if (m_bHasButton && m_button.iDuration == 0)
+  if (!m_bHasButton)
     GetNextKey();
 
-  return m_bHasButton ? m_button.iDuration : 0;
+  return m_bHasButton ? m_currentButton.iDuration : 0;
 }
 
 void CPeripheralCecAdapter::ResetButton(void)
 {
   CSingleLock lock(m_critSection);
   m_bHasButton = false;
+
+  // wait for the key release if the duration isn't 0
+  if (m_currentButton.iDuration > 0)
+  {
+    m_currentButton.iButton   = 0;
+    m_currentButton.iDuration = 0;
+  }
 }
 
 void CPeripheralCecAdapter::OnSettingChanged(const CStdString &strChangedSetting)
