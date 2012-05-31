@@ -49,6 +49,12 @@ void CAdvancedSettings::Initialize()
   m_ac3Gain = 12.0f;
   m_audioApplyDrc = true;
   m_dvdplayerIgnoreDTSinWAV = false;
+  m_audioResample = 0;
+  m_allowTranscode44100 = false;
+  m_audioForceDirectSound = false;
+  m_audioAudiophile = false;
+  m_allChannelStereo = false;
+  m_audioSinkBufferDurationMsec = 50;
 
   //default hold time of 25 ms, this allows a 20 hertz sine to pass undistorted
   m_limiterHold = 0.025f;
@@ -112,7 +118,6 @@ void CAdvancedSettings::Initialize()
   m_musicPercentSeekBackward = -1;
   m_musicPercentSeekForwardBig = 10;
   m_musicPercentSeekBackwardBig = -10;
-  m_musicResample = 0;
 
   m_slideshowPanAmount = 2.5f;
   m_slideshowZoomAmount = 5.0f;
@@ -322,7 +327,7 @@ bool CAdvancedSettings::Load()
 
 void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
 {
-  TiXmlDocument advancedXML;
+  CXBMCTinyXML advancedXML;
   if (!CFile::Exists(file))
   {
     CLog::Log(LOGNOTICE, "No settings file to load (%s)", file.c_str());
@@ -372,7 +377,13 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
     XMLUtils::GetInt(pElement, "percentseekforwardbig", m_musicPercentSeekForwardBig, 0, 100);
     XMLUtils::GetInt(pElement, "percentseekbackwardbig", m_musicPercentSeekBackwardBig, -100, 0);
 
-    XMLUtils::GetInt(pElement, "resample", m_musicResample, 0, 192000);
+    XMLUtils::GetInt(pElement, "resample", m_audioResample, 0, 192000);
+    XMLUtils::GetBoolean(pElement, "allowtranscode44100", m_allowTranscode44100);
+    XMLUtils::GetBoolean(pElement, "forceDirectSound", m_audioForceDirectSound);
+    XMLUtils::GetBoolean(pElement, "audiophile", m_audioAudiophile);
+    XMLUtils::GetBoolean(pElement, "allchannelstereo", m_allChannelStereo);
+    XMLUtils::GetString(pElement, "transcodeto", m_audioTranscodeTo);
+    XMLUtils::GetInt(pElement, "audiosinkbufferdurationmsec", m_audioSinkBufferDurationMsec);
 
     TiXmlElement* pAudioExcludes = pElement->FirstChildElement("excludefromlisting");
     if (pAudioExcludes)
@@ -862,7 +873,7 @@ void CAdvancedSettings::ParseSettingsFile(const CStdString &file)
       CStdString strFrom, strTo;
       TiXmlNode* pFrom = pSubstitute->FirstChild("from");
       if (pFrom)
-        strFrom = _P(pFrom->FirstChild()->Value()).c_str();
+        strFrom = CSpecialProtocol::TranslatePath(pFrom->FirstChild()->Value()).c_str();
       TiXmlNode* pTo = pSubstitute->FirstChild("to");
       if (pTo)
         strTo = pTo->FirstChild()->Value();
@@ -1065,6 +1076,7 @@ void CAdvancedSettings::GetCustomTVRegexps(TiXmlElement *pRootElement, SETTINGS_
     if (pRegExp->FirstChild())
     {
       bool bByDate = false;
+      int iDefaultSeason = 1;
       if (pRegExp->ToElement())
       {
         CStdString byDate = pRegExp->ToElement()->Attribute("bydate");
@@ -1072,13 +1084,18 @@ void CAdvancedSettings::GetCustomTVRegexps(TiXmlElement *pRootElement, SETTINGS_
         {
           bByDate = true;
         }
+        CStdString defaultSeason = pRegExp->ToElement()->Attribute("defaultseason");
+        if(!defaultSeason.empty())
+        {
+          iDefaultSeason = atoi(defaultSeason.c_str());
+        }
       }
       CStdString regExp = pRegExp->FirstChild()->Value();
       regExp.MakeLower();
       if (iAction == 2)
-        settings.insert(settings.begin() + i++, 1, TVShowRegexp(bByDate,regExp));
+        settings.insert(settings.begin() + i++, 1, TVShowRegexp(bByDate,regExp,iDefaultSeason));
       else
-        settings.push_back(TVShowRegexp(bByDate,regExp));
+        settings.push_back(TVShowRegexp(bByDate,regExp,iDefaultSeason));
     }
     pRegExp = pRegExp->NextSibling("regexp");
   }

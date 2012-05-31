@@ -97,6 +97,7 @@ void CGUIDialogPeripheralSettings::CreateSettings()
             CSettingInt *intSetting = (CSettingInt *) setting;
             if (intSetting)
             {
+<<<<<<< HEAD
               if (intSetting->GetControlType() == SPIN_CONTROL_INT)
               {
                 m_intSettings.insert(make_pair(CStdString(intSetting->GetSetting()), (float) intSetting->GetData()));
@@ -114,6 +115,10 @@ void CGUIDialogPeripheralSettings::CreateSettings()
                 }
                 AddSpin(intSetting->GetOrder(), intSetting->GetLabel(), &m_intTextSettings[intSetting->GetSetting()], entries);
               }
+=======
+              m_intSettings.insert(make_pair(CStdString(intSetting->GetSetting()), (float) intSetting->GetData()));
+              AddSlider(intSetting->GetOrder(), intSetting->GetLabel(), &m_intSettings[intSetting->GetSetting()], (float)intSetting->m_iMin, (float)intSetting->m_iStep, (float)intSetting->m_iMax, CGUIDialogVideoSettings::FormatInteger, false);
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
             }
           }
           break;

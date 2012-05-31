@@ -1,6 +1,6 @@
 #pragma once
 /*
- *      Copyright (C) 2005-2010 Team XBMC
+ *      Copyright (C) 2005-2012 Team XBMC
  *      http://www.xbmc.org
  *
  *  This Program is free software; you can redistribute it and/or modify
@@ -22,18 +22,16 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "utils/StdString.h"
+
+#include "JSONRPCUtils.h"
 #include "interfaces/IAnnouncer.h"
-#include "interfaces/AnnouncementUtils.h"
-#include "ITransportLayer.h"
-#include "utils/Variant.h"
 #include "utils/JSONVariantWriter.h"
 #include "utils/JSONVariantParser.h"
-
 
 namespace JSONRPC
 {
   /*!
+<<<<<<< HEAD
    \ingroup jsonrpc
    \brief Possible statuc codes of a response
    to a JSON RPC request
@@ -83,6 +81,8 @@ namespace JSONRPC
   static const int OPERATION_PERMISSION_NOTIFICATION = (ControlPlayback | ControlNotify | ControlPower | UpdateData | RemoveData | Navigate | WriteFile | ControlPVR);
 
   /*!
+=======
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
    \brief Possible value types of a parameter or return type
    */
   enum JSONSchemaType
@@ -195,6 +195,7 @@ namespace JSONRPC
     }
 
     /*!
+<<<<<<< HEAD
      \brief Returns a string representation for the 
      given OperationPermission
      \param permission Specific OperationPermission
@@ -255,6 +256,8 @@ namespace JSONRPC
     }
 
     /*!
+=======
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
      \brief Returns a TransportLayerCapability value of the
      given string representation
      \param transport String representation of the TransportLayerCapability
@@ -481,25 +484,28 @@ namespace JSONRPC
           value = CVariant(CVariant::VariantTypeObject);
           break;
         default:
-          value = CVariant(CVariant::VariantTypeConstNull);
+          value = CVariant(CVariant::VariantTypeNull);
       }
     }
 
     static inline bool HasType(JSONSchemaType typeObject, JSONSchemaType type) { return (typeObject & type) == type; }
 
-    static std::string AnnouncementToJSON(ANNOUNCEMENT::EAnnouncementFlag flag, const char *sender, const char *method, const CVariant &data, bool compactOutput)
+    static inline bool ParameterNotNull(const CVariant &parameterObject, std::string key) { return parameterObject.isMember(key) && !parameterObject[key].isNull(); }
+
+    /*!
+     \brief Copies the values from the jsonStringArray to the stringArray.
+     stringArray is cleared.
+     \param jsonStringArray JSON object representing a string array
+     \param stringArray String array where the values are copied into (cleared)
+     */
+    static void CopyStringArray(const CVariant &jsonStringArray, std::vector<std::string> &stringArray)
     {
-      CVariant root;
-      root["jsonrpc"] = "2.0";
+      if (!jsonStringArray.isArray())
+        return;
 
-      CStdString namespaceMethod;
-      namespaceMethod.Format("%s.%s", ANNOUNCEMENT::CAnnouncementUtils::AnnouncementFlagToString(flag), method);
-      root["method"]  = namespaceMethod.c_str();
-
-      root["params"]["data"] = data;
-      root["params"]["sender"] = sender;
-
-      return CJSONVariantWriter::Write(root, compactOutput);
+      stringArray.clear();
+      for (CVariant::const_iterator_array it = jsonStringArray.begin_array(); it != jsonStringArray.end_array(); it++)
+        stringArray.push_back(it->asString());
     }
   };
 }

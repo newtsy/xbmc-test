@@ -24,7 +24,7 @@
 #include "utils/log.h"
 #include "utils/StringUtils.h"
 #include "settings/GUISettings.h"
-#include "lib/tinyXML/tinyxml.h"
+#include "utils/XBMCTinyXML.h"
 #include "utils/URIUtils.h"
 #include "guilib/LocalizeStrings.h"
 
@@ -215,6 +215,7 @@ void CPeripheral::AddSetting(const CStdString &strKey, const CSetting *setting)
     case SETTINGS_TYPE_INT:
       {
         const CSettingInt *mappedSetting = (const CSettingInt *) setting;
+<<<<<<< HEAD
         CSettingInt *intSetting(NULL);
         if (mappedSetting->GetControlType() == SPIN_CONTROL_INT)
         {
@@ -224,6 +225,9 @@ void CPeripheral::AddSetting(const CStdString &strKey, const CSetting *setting)
         {
           intSetting = new CSettingInt(mappedSetting->GetOrder(), strKey.c_str(), mappedSetting->GetLabel(), mappedSetting->GetData(), mappedSetting->m_entries, mappedSetting->GetControlType());
         }
+=======
+        CSettingInt *intSetting = new CSettingInt(mappedSetting->GetOrder(), strKey.c_str(), mappedSetting->GetLabel(), mappedSetting->GetData(), mappedSetting->m_iMin, mappedSetting->m_iStep, mappedSetting->m_iMax, mappedSetting->GetControlType(), mappedSetting->m_strFormat);
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
         if (intSetting)
         {
           intSetting->SetVisible(mappedSetting->IsVisible());
@@ -410,7 +414,26 @@ bool CPeripheral::IsSettingVisible(const CStdString &strKey) const
   return false;
 }
 
+<<<<<<< HEAD
 bool CPeripheral::SetSetting(const CStdString &strKey, const CStdString &strValue)
+=======
+void CPeripheral::SetSettingVisible(const CStdString &strKey, bool bSetTo)
+{
+  map<CStdString, CSetting *>::iterator it = m_settings.find(strKey);
+  if (it != m_settings.end())
+    (*it).second->SetVisible(bSetTo);
+}
+
+bool CPeripheral::IsSettingVisible(const CStdString &strKey) const
+{
+  map<CStdString, CSetting *>::const_iterator it = m_settings.find(strKey);
+  if (it != m_settings.end())
+    return (*it).second->IsVisible();
+  return false;
+}
+
+void CPeripheral::SetSetting(const CStdString &strKey, const CStdString &strValue)
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
 {
   bool bChanged(false);
   map<CStdString, CSetting *>::iterator it = m_settings.find(strKey);
@@ -439,7 +462,7 @@ bool CPeripheral::SetSetting(const CStdString &strKey, const CStdString &strValu
 
 void CPeripheral::PersistSettings(bool bExiting /* = false */)
 {
-  TiXmlDocument doc;
+  CXBMCTinyXML doc;
   TiXmlElement node("settings");
   doc.InsertEndChild(node);
   for (map<CStdString, CSetting *>::const_iterator itr = m_settings.begin(); itr != m_settings.end(); itr++)
@@ -496,7 +519,7 @@ void CPeripheral::PersistSettings(bool bExiting /* = false */)
 
 void CPeripheral::LoadPersistedSettings(void)
 {
-  TiXmlDocument doc;
+  CXBMCTinyXML doc;
   if (doc.LoadFile(m_strSettingsFile))
   {
     const TiXmlElement *setting = doc.RootElement()->FirstChildElement("setting");

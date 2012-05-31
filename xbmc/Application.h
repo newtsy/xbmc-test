@@ -69,6 +69,30 @@ class DPMSSupport;
 class CSplash;
 class CBookmark;
 class CWebServer;
+#ifdef HAS_WEB_SERVER
+class CWebServer;
+class CHTTPImageHandler;
+class CHTTPVfsHandler;
+#ifdef HAS_JSONRPC
+class CHTTPJsonRpcHandler;
+#endif
+#ifdef HAS_HTTPAPI
+class CHTTPApiHandler;
+#endif
+#ifdef HAS_WEB_INTERFACE
+class CHTTPWebinterfaceHandler;
+class CHTTPWebinterfaceAddonsHandler;
+#endif
+#endif
+namespace VIDEO
+{
+  class CVideoInfoScanner;
+}
+
+namespace MUSIC_INFO
+{
+  class CMusicInfoScanner;
+}
 
 class CBackgroundPlayer : public CThread
 {
@@ -141,7 +165,7 @@ public:
   bool PlayMediaSync(const CFileItem& item, int iPlaylist = PLAYLIST_MUSIC);
   bool ProcessAndStartPlaylist(const CStdString& strPlayList, PLAYLIST::CPlayList& playlist, int iPlaylist, int track=0);
   bool PlayFile(const CFileItem& item, bool bRestart = false);
-  void SaveFileState();
+  void SaveFileState(bool bForeground = false);
   void UpdateFileState();
   void StopPlaying();
   void Restart(bool bSamePosition = true);
@@ -153,6 +177,7 @@ public:
   bool IsPlayingVideo() const;
   bool IsPlayingFullScreenVideo() const;
   bool IsStartingPlayback() const { return m_bPlaybackStarting; }
+  bool IsFullScreen();
   bool OnKey(const CKey& key);
   bool OnAppCommand(const CAction &action);
   bool OnAction(const CAction &action);
@@ -170,7 +195,7 @@ public:
   void ProcessSlow();
   void ResetScreenSaver();
   int GetVolume() const;
-  void SetVolume(long iValue, bool isPercentage = true);
+  void SetVolume(float iValue, bool isPercentage = true);
   bool IsMuted() const;
   void ToggleMute(void);
   void ShowVolumeBar(const CAction *action = NULL);
@@ -199,6 +224,19 @@ public:
 
   void SaveMusicScanSettings();
   void RestoreMusicScanSettings();
+
+  void StopVideoScan();
+  void StopMusicScan();
+  bool IsMusicScanning() const;
+  bool IsVideoScanning() const;
+
+  void StartVideoCleanup();
+
+  void StartVideoScan(const CStdString &path, bool scanAll = false);
+  void StartMusicScan(const CStdString &path);
+  void StartMusicAlbumScan(const CStdString& strDirectory, bool refresh=false);
+  void StartMusicArtistScan(const CStdString& strDirectory, bool refresh=false);
+
   void UpdateLibraries();
   void CheckMusicPlaylist();
 
@@ -230,6 +268,18 @@ public:
 
 #ifdef HAS_WEB_SERVER
   CWebServer& m_WebServer;
+  CHTTPImageHandler& m_httpImageHandler;
+  CHTTPVfsHandler& m_httpVfsHandler;
+#ifdef HAS_JSONRPC
+  CHTTPJsonRpcHandler& m_httpJsonRpcHandler;
+#endif
+#ifdef HAS_HTTPAPI
+  CHTTPApiHandler& m_httpApiHandler;
+#endif
+#ifdef HAS_WEB_INTERFACE
+  CHTTPWebinterfaceHandler& m_httpWebinterfaceHandler;
+  CHTTPWebinterfaceAddonsHandler& m_httpWebinterfaceAddonsHandler;
+#endif
 #endif
 
   inline bool IsInScreenSaver() { return m_bScreenSave; };
@@ -355,10 +405,13 @@ protected:
   CCriticalSection m_frameMutex;
   XbmcThreads::ConditionVariable  m_frameCond;
 
+  VIDEO::CVideoInfoScanner *m_videoInfoScanner;
+  MUSIC_INFO::CMusicInfoScanner *m_musicInfoScanner;
+
   void Mute();
   void UnMute();
 
-  void SetHardwareVolume(long hardwareVolume);
+  void SetHardwareVolume(float hardwareVolume);
   void UpdateLCD();
   void FatalErrorHandler(bool WindowSystemInitialized, bool MapDrives, bool InitNetwork);
 
@@ -371,7 +424,7 @@ protected:
   bool ProcessPeripherals(float frameTime);
   bool ProcessHTTPApiButtons();
   bool ProcessJsonRpcButtons();
-  bool ProcessJoystickEvent(const std::string& joystickName, int button, bool isAxis, float fAmount);
+  bool ProcessJoystickEvent(const std::string& joystickName, int button, bool isAxis, float fAmount, unsigned int holdTime = 0);
 
   float NavigationIdleTime();
   static bool AlwaysProcess(const CAction& action);

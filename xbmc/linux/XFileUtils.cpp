@@ -251,7 +251,7 @@ HANDLE CreateFile(LPCTSTR lpFileName, DWORD dwDesiredAccess,
   {
     // Failed to open file. maybe due to case sensitivity.
     // Try opening the same name in lower case.
-    CStdString igFileName = PTH_IC(lpFileName);
+    CStdString igFileName = CSpecialProtocol::TranslatePathConvertCase(lpFileName);
     fd = open(igFileName.c_str(), flags, mode);
     if (fd != -1)
     {
@@ -275,7 +275,7 @@ if (errno == 20)
   HANDLE result = new CXHandle(CXHandle::HND_FILE);
   result->fd = fd;
 
-#if defined(TARGET_LINUX) && defined(HAS_DVD_DRIVE) 
+#if (defined(TARGET_LINUX) || defined(TARGET_FREEBSD)) && defined(HAS_DVD_DRIVE) 
   // special case for opening the cdrom device
   if (strcmp(lpFileName, MEDIA_DETECT::CLibcdio::GetInstance()->GetDeviceFileName())==0)
     result->m_bCDROM = true;
@@ -576,7 +576,7 @@ BOOL GetDiskFreeSpaceEx(
 
 {
   struct statfs64 fsInfo;
-  if (statfs64(_P(lpDirectoryName), &fsInfo) != 0)
+  if (statfs64(CSpecialProtocol::TranslatePath(lpDirectoryName), &fsInfo) != 0)
     return false;
 
   if (lpFreeBytesAvailable)

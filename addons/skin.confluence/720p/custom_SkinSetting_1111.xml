@@ -1,8 +1,7 @@
 <window id="1111">
 	<defaultcontrol always="true">9000</defaultcontrol>
 	<controls>
-		<include>CommonSettingsBackground</include>
-		<include>CommonMediaPlayingBackground</include>
+		<include>CommonBackground</include>
 		<control type="image">
 			<posx>0</posx>
 			<posy>100r</posy>
@@ -10,6 +9,33 @@
 			<height>100</height>
 			<texture>floor.png</texture>
 			<include>VisibleFadeEffect</include>
+		</control>
+		<control type="image">
+			<description>Section header image</description>
+			<posx>20</posx>
+			<posy>3</posy>
+			<width>35</width>
+			<height>35</height>
+			<aspectratio>keep</aspectratio>
+			<texture>icon_system.png</texture>
+		</control>
+		<control type="grouplist">
+			<posx>65</posx>
+			<posy>5</posy>
+			<width>1000</width>
+			<height>30</height>
+			<orientation>horizontal</orientation>
+			<align>left</align>
+			<itemgap>5</itemgap>
+			<control type="label">
+				<include>WindowTitleCommons</include>
+				<label>$LOCALIZE[20077]</label>
+			</control>
+			<control type="label">
+				<include>WindowTitleCommons</include>
+				<label>[COLOR=blue] - [/COLOR]$INFO[Container.FolderName]</label>
+				<visible>!IsEmpty(Container.FolderName)</visible>
+			</control>
 		</control>
 		<control type="group">
 			<posx>90</posx>
@@ -97,7 +123,7 @@
 						<posy>42</posy>
 						<width>870</width>
 						<height>25</height>
-						<font>font13caps</font>
+						<font>font13</font>
 						<textcolor>grey2</textcolor>
 						<align>right</align>
 						<aligny>center</aligny>
@@ -129,7 +155,7 @@
 						<posy>42</posy>
 						<width>870</width>
 						<height>25</height>
-						<font>font13caps</font>
+						<font>font13</font>
 						<textcolor>grey2</textcolor>
 						<align>right</align>
 						<aligny>center</aligny>
@@ -145,11 +171,6 @@
 					<item id="2">
 						<label>513</label>
 						<label2>31112</label2>
-						<onclick>-</onclick>
-					</item>
-					<item id="3">
-						<label>31102</label>
-						<label2>31115</label2>
 						<onclick>-</onclick>
 					</item>
 					<item id="4">
@@ -180,7 +201,7 @@
 				<posy>20</posy>
 				<width>740</width>
 				<height>30</height>
-				<font>font16caps</font>
+				<font>font16</font>
 				<label>$LOCALIZE[20077] - $INFO[Container(9000).ListItem.Label]</label>
 				<align>left</align>
 				<aligny>center</aligny>
@@ -257,18 +278,6 @@
 						<texturenofocus>MenuItemNF.png</texturenofocus>
 						<onclick>Skin.ToggleSetting(HideFilenameFlagging)</onclick>
 						<selected>Skin.HasSetting(HideFilenameFlagging)</selected>
-					</control>
-					<control type="radiobutton" id="114">
-						<width>750</width>
-						<height>40</height>
-						<font>font13</font>
-						<label>31119</label>
-						<textcolor>grey2</textcolor>
-						<focusedcolor>white</focusedcolor>
-						<texturefocus>MenuItemFO.png</texturefocus>
-						<texturenofocus>MenuItemNF.png</texturenofocus>
-						<onclick>Skin.ToggleSetting(HideBackGroundFanart)</onclick>
-						<selected>Skin.HasSetting(HideBackGroundFanart)</selected>
 					</control>
 					<control type="label" id="104">
 						<width>750</width>
@@ -350,6 +359,18 @@
 						<shadowcolor>black</shadowcolor>
 						<align>left</align>
 						<aligny>center</aligny>
+					</control>
+					<control type="radiobutton" id="114">
+						<width>750</width>
+						<height>40</height>
+						<font>font13</font>
+						<label>31119</label>
+						<textcolor>grey2</textcolor>
+						<focusedcolor>white</focusedcolor>
+						<texturefocus>MenuItemFO.png</texturefocus>
+						<texturenofocus>MenuItemNF.png</texturenofocus>
+						<onclick>Skin.ToggleSetting(HideBackGroundFanart)</onclick>
+						<selected>Skin.HasSetting(HideBackGroundFanart)</selected>
 					</control>
 					<control type="radiobutton" id="110">
 						<width>750</width>
@@ -449,33 +470,34 @@
 						<focusedcolor>white</focusedcolor>
 						<label>20084</label>
 						<onclick>Skin.ToggleSetting(homepageWeatherinfo)</onclick>
-						<selected>!Skin.HasSetting(homepageWeatherinfo)</selected>
+						<selected>Skin.HasSetting(homepageWeatherinfo)</selected>
 						<texturefocus>MenuItemFO.png</texturefocus>
 						<texturenofocus>MenuItemNF.png</texturenofocus>
+						<visible>!IsEmpty(Weather.Plugin)</visible>
 					</control>
 					<control type="radiobutton" id="205">
-						<description>Show Recently added info</description>
+						<description>Show Recently added Video info</description>
 						<width>750</width>
 						<height>40</height>
 						<font>font13</font>
 						<textcolor>grey2</textcolor>
 						<focusedcolor>white</focusedcolor>
 						<label>31117</label>
-						<onclick>Skin.ToggleSetting(homepageShowRecentlyAdded)</onclick>
-						<selected>Skin.HasSetting(homepageShowRecentlyAdded)</selected>
+						<onclick>Skin.ToggleSetting(HomepageHideRecentlyAddedVideo)</onclick>
+						<selected>!Skin.HasSetting(HomepageHideRecentlyAddedVideo)</selected>
 						<texturefocus>MenuItemFO.png</texturefocus>
 						<texturenofocus>MenuItemNF.png</texturenofocus>
 					</control>
 					<control type="radiobutton" id="206">
-						<description>Videos Goes to Files</description>
+						<description>Show Recently added info</description>
 						<width>750</width>
 						<height>40</height>
 						<font>font13</font>
 						<textcolor>grey2</textcolor>
 						<focusedcolor>white</focusedcolor>
-						<label>$LOCALIZE[31105]</label>
-						<onclick>Skin.ToggleSetting(HomeVideostoFiles)</onclick>
-						<selected>Skin.HasSetting(HomeVideostoFiles)</selected>
+						<label>31116</label>
+						<onclick>Skin.ToggleSetting(HomepageHideRecentlyAddedAlbums)</onclick>
+						<selected>!Skin.HasSetting(HomepageHideRecentlyAddedAlbums)</selected>
 						<texturefocus>MenuItemFO.png</texturefocus>
 						<texturenofocus>MenuItemNF.png</texturenofocus>
 					</control>
@@ -511,7 +533,7 @@
 						<focusedcolor>white</focusedcolor>
 						<label>$LOCALIZE[31111] - $LOCALIZE[20342] [COLOR=grey3] ($LOCALIZE[20314])[/COLOR]</label>
 						<onclick>Skin.ToggleSetting(HomeMenuNoMoviesButton)</onclick>
-						<selected>!Skin.HasSetting(HomeMenuNoMoviesButton)</selected>
+						<selected>Skin.HasSetting(HomeMenuNoMoviesButton)</selected>
 						<texturefocus>MenuItemFO.png</texturefocus>
 						<texturenofocus>MenuItemNF.png</texturenofocus>
 						<enable>Library.HasContent(Movies)</enable>
@@ -525,7 +547,7 @@
 						<focusedcolor>white</focusedcolor>
 						<label>$LOCALIZE[31111] - $LOCALIZE[20343] [COLOR=grey3] ($LOCALIZE[20314])[/COLOR]</label>
 						<onclick>Skin.ToggleSetting(HomeMenuNoTVShowsButton)</onclick>
-						<selected>!Skin.HasSetting(HomeMenuNoTVShowsButton)</selected>
+						<selected>Skin.HasSetting(HomeMenuNoTVShowsButton)</selected>
 						<texturefocus>MenuItemFO.png</texturefocus>
 						<texturenofocus>MenuItemNF.png</texturenofocus>
 						<enable>Library.HasContent(TVShows)</enable>
@@ -600,6 +622,7 @@
 					<visible>Container(9000).Hasfocus(2)</visible>
 				</control>
 				<control type="group">
+<<<<<<< HEAD
 					<posx>290</posx>
 					<posy>60</posy>
 					<visible>Container(9000).Hasfocus(3)</visible>
@@ -902,6 +925,8 @@
 					</control>
 				</control>
 				<control type="group">
+=======
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
 					<control type="grouplist" id="9004">
 						<visible>Container(9000).Hasfocus(4)</visible>
 						<posx>290</posx>
@@ -927,7 +952,7 @@
 						<control type="button" id="455">
 							<width>750</width>
 							<height>35</height>
-							<font>font12</font>
+							<font>font13</font>
 							<label>$LOCALIZE[31132]</label>
 							<label2>[COLOR=selected]$INFO[system.addontitle(Skin.String(LyricScript_Path))][/COLOR]</label2>
 							<textcolor>grey2</textcolor>
@@ -950,7 +975,7 @@
 						<control type="button" id="458">
 							<width>750</width>
 							<height>35</height>
-							<font>font12</font>
+							<font>font13</font>
 							<label>$LOCALIZE[31133]</label>
 							<label2>[COLOR=selected]$INFO[system.addontitle(Skin.String(SubtitleScript_Path))][/COLOR]</label2>
 							<textcolor>grey2</textcolor>
@@ -980,7 +1005,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeVideosButton1,xbmc.addon.video)</onclick>
+							<onclick>Skin.SetAddon(HomeVideosButton1,xbmc.addon.video,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="412">
 							<width>750</width>
@@ -992,7 +1017,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeVideosButton2,xbmc.addon.video)</onclick>
+							<onclick>Skin.SetAddon(HomeVideosButton2,xbmc.addon.video,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="413">
 							<width>750</width>
@@ -1004,7 +1029,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeVideosButton3,xbmc.addon.video)</onclick>
+							<onclick>Skin.SetAddon(HomeVideosButton3,xbmc.addon.video,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="414">
 							<width>750</width>
@@ -1016,7 +1041,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeVideosButton4,xbmc.addon.video)</onclick>
+							<onclick>Skin.SetAddon(HomeVideosButton4,xbmc.addon.video,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="415">
 							<width>750</width>
@@ -1028,7 +1053,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeVideosButton5,xbmc.addon.video)</onclick>
+							<onclick>Skin.SetAddon(HomeVideosButton5,xbmc.addon.video,xbmc.addon.executable)</onclick>
 						</control>
 
 						<control type="label" id="420">
@@ -1051,7 +1076,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeMusicButton1,xbmc.addon.audio)</onclick>
+							<onclick>Skin.SetAddon(HomeMusicButton1,xbmc.addon.audio,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="422">
 							<width>750</width>
@@ -1063,7 +1088,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeMusicButton2,xbmc.addon.audio)</onclick>
+							<onclick>Skin.SetAddon(HomeMusicButton2,xbmc.addon.audio,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="423">
 							<width>750</width>
@@ -1075,7 +1100,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeMusicButton3,xbmc.addon.audio)</onclick>
+							<onclick>Skin.SetAddon(HomeMusicButton3,xbmc.addon.audio,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="424">
 							<width>750</width>
@@ -1087,7 +1112,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeMusicButton4,xbmc.addon.audio)</onclick>
+							<onclick>Skin.SetAddon(HomeMusicButton4,xbmc.addon.audio,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="425">
 							<width>750</width>
@@ -1099,7 +1124,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomeMusicButton5,xbmc.addon.audio)</onclick>
+							<onclick>Skin.SetAddon(HomeMusicButton5,xbmc.addon.audio,xbmc.addon.executable)</onclick>
 						</control>
 
 						<control type="label" id="430">
@@ -1122,7 +1147,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomePictureButton1,xbmc.addon.image)</onclick>
+							<onclick>Skin.SetAddon(HomePictureButton1,xbmc.addon.image,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="432">
 							<width>750</width>
@@ -1134,7 +1159,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomePictureButton2,xbmc.addon.image)</onclick>
+							<onclick>Skin.SetAddon(HomePictureButton2,xbmc.addon.image,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="433">
 							<width>750</width>
@@ -1146,7 +1171,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomePictureButton3,xbmc.addon.image)</onclick>
+							<onclick>Skin.SetAddon(HomePictureButton3,xbmc.addon.image,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="434">
 							<width>750</width>
@@ -1158,7 +1183,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomePictureButton4,xbmc.addon.image)</onclick>
+							<onclick>Skin.SetAddon(HomePictureButton4,xbmc.addon.image,xbmc.addon.executable)</onclick>
 						</control>
 						<control type="button" id="435">
 							<width>750</width>
@@ -1170,7 +1195,7 @@
 							<focusedcolor>white</focusedcolor>
 							<texturefocus>MenuItemFO.png</texturefocus>
 							<texturenofocus>MenuItemNF.png</texturenofocus>
-							<onclick>Skin.SetAddon(HomePictureButton5,xbmc.addon.image)</onclick>
+							<onclick>Skin.SetAddon(HomePictureButton5,xbmc.addon.image,xbmc.addon.executable)</onclick>
 						</control>
 
 						<control type="label" id="440">
@@ -1276,26 +1301,8 @@
 			</control>
 		</control>
 		<include>CommonNowPlaying</include>
+		<include>MainWindowMouseButtons</include>
 		<include>BehindDialogFadeOut</include>
-		<control type="group">
-			<posx>60</posx>
-			<posy>0</posy>
-			<animation effect="slide" end="-310,0" time="400" tween="quadratic" easing="out">WindowClose</animation>
-			<animation effect="slide" start="-310,0" time="400" tween="quadratic" easing="out">WindowOpen</animation>
-			<control type="image">
-				<posx>0</posx>
-				<posy>0</posy>
-				<width>250</width>
-				<height>35</height>
-				<texture border="0,0,32,0">header.png</texture>
-			</control>
-			<control type="label">
-				<include>WindowTitleCommons</include>
-				<posx>220</posx>
-				<label>$LOCALIZE[20077]</label>
-			</control>
-		</control>
-		<include>WindowTitleHomeButton</include>
 		<include>Clock</include>
 	</controls>
 </window>

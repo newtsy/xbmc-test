@@ -107,7 +107,7 @@ using namespace std;
 
 #endif
 
-CVideoReferenceClock::CVideoReferenceClock()
+CVideoReferenceClock::CVideoReferenceClock() : CThread("CVideoReferenceClock")
 {
   m_SystemFrequency = CurrentHostFrequency();
   m_ClockSpeed = 1.0;
@@ -650,6 +650,9 @@ void CVideoReferenceClock::RunGLX()
         CLog::Log(LOGDEBUG, "CVideoReferenceClock: glXMakeCurrent returned %i", ReturnV);
         return;
       }
+
+      //sleep here so we don't busy spin when this constantly happens, for example when the display went to sleep
+      Sleep(1000);
 
       CLog::Log(LOGDEBUG, "CVideoReferenceClock: Attaching glX context");
       if (!m_bIsATI)

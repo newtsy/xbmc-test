@@ -65,6 +65,11 @@ class TiXmlElement;
 #define KARAOKE_COLOR_START  0
 #define KARAOKE_COLOR_END    4
 
+// CDDA Autoaction defines
+#define AUTOCD_NONE              0
+#define AUTOCD_PLAY              1
+#define AUTOCD_RIP               2
+
 // CDDA ripper defines
 #define CDDARIP_ENCODER_LAME     0
 #define CDDARIP_ENCODER_VORBIS   1
@@ -196,7 +201,8 @@ enum VideoSelectAction
   SELECT_ACTION_RESUME,
   SELECT_ACTION_INFO,
   SELECT_ACTION_MORE,
-  SELECT_ACTION_PLAY
+  SELECT_ACTION_PLAY,
+  SELECT_ACTION_PLAYPART
 };
 
 enum SubtitleAlign
@@ -404,13 +410,12 @@ public:
   {
     m_strCategory = strCategory;
     m_labelID = labelID;
-    m_entries = 0;
   }
   ~CSettingsCategory() {};
 
   CStdString m_strCategory;
   int m_labelID;
-  int m_entries;
+  std::vector<CSetting*> m_settings;
 };
 
 typedef std::vector<CSettingsCategory *> vecSettingsCategory;
@@ -460,6 +465,7 @@ public:
   CSettingsCategory* AddCategory(int groupID, const char *strCategory, int labelID);
   CSettingsGroup *GetGroup(int windowID);
 
+  void AddSetting(CSettingsCategory* cat, CSetting* setting);
   void AddBool(CSettingsCategory* cat, const char *strSetting, int iLabel, bool bSetting, int iControlType = CHECKMARK_CONTROL);
   bool GetBool(const char *strSetting) const;
   void SetBool(const char *strSetting, bool bSetting);
@@ -490,7 +496,7 @@ public:
 
   CSetting *GetSetting(const char *strSetting);
 
-  void GetSettingsGroup(const char *strGroup, vecSettings &settings);
+  void GetSettingsGroup(CSettingsCategory* cat, vecSettings &settings);
   void LoadXML(TiXmlElement *pRootElement, bool hideSettings = false);
   void SaveXML(TiXmlNode *pRootNode);
   void LoadMasterLock(TiXmlElement *pRootElement);

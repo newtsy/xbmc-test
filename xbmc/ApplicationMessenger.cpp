@@ -26,7 +26,6 @@
 #include "guilib/TextureManager.h"
 #include "PlayListPlayer.h"
 #include "Util.h"
-#include "SectionLoader.h"
 #ifdef HAS_PYTHON
 #include "interfaces/python/XBPython.h"
 #endif
@@ -72,10 +71,11 @@
 
 #include "utils/JobManager.h"
 #include "storage/DetectDVDType.h"
+#include "ThumbLoader.h"
 
 using namespace std;
 
-CDelayedMessage::CDelayedMessage(ThreadMessage& msg, unsigned int delay)
+CDelayedMessage::CDelayedMessage(ThreadMessage& msg, unsigned int delay) : CThread("CDelayedMessage")
 {
   m_msg.dwMessage  = msg.dwMessage;
   m_msg.dwParam1   = msg.dwParam1;
@@ -339,6 +339,13 @@ void CApplicationMessenger::ProcessMessage(ThreadMessage *pMsg)
               g_application.PlayMedia(*((*list)[0]), playlist);
             else
             {
+              // Handle "shuffled" option if present
+              if (list->HasProperty("shuffled") && list->GetProperty("shuffled").isBoolean())
+                g_playlistPlayer.SetShuffle(playlist, list->GetProperty("shuffled").asBoolean(), false);
+              // Handle "repeat" option if present
+              if (list->HasProperty("repeat") && list->GetProperty("repeat").isInteger())
+                g_playlistPlayer.SetRepeat(playlist, (PLAYLIST::REPEAT_STATE)list->GetProperty("repeat").asInteger(), false);
+
               g_playlistPlayer.Add(playlist, (*list));
               g_playlistPlayer.Play(pMsg->dwParam1);
             }
@@ -517,7 +524,6 @@ void CApplicationMessenger::ProcessMessage(ThreadMessage *pMsg)
 #ifdef HAS_HTTPAPI
       if (!m_pXbmcHttp)
       {
-        CSectionLoader::Load("LIBHTTP");
         m_pXbmcHttp = new CXbmcHttp();
       }
       switch (m_pXbmcHttp->xbmcCommand(pMsg->strParam))
@@ -841,7 +847,7 @@ void CApplicationMessenger::MediaPlay(string filename)
   if (item.IsAudio())
     item.SetMusicThumb();
   else
-    item.SetVideoThumb();
+    CVideoThumbLoader::FillThumb(item);
   item.FillInDefaultIcon();
 
   MediaPlay(item);

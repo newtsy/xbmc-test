@@ -5,10 +5,11 @@ SOURCE=../../../../
 # configuration settings
 export PATH:=$(TOOLCHAIN)/bin:$(PREFIX)/bin:$(PATH)
 CONFIGURE=./configure --prefix=$(PREFIX) \
+  --disable-rsxs \
   PKG_CONFIG_PATH=$(PREFIX)/lib/pkgconfig \
   PYTHON=$(PREFIX)/bin/python
 
-ifeq ($(XBMC_DARWIN_RELEASE),1)
+ifeq ($(XBMC_DARWIN_RELEASE),Release)
 	CONFIGURE+= --disable-debug
 endif
 

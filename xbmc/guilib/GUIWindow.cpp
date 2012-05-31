@@ -114,7 +114,7 @@ bool CGUIWindow::Load(const CStdString& strFileName, bool bContainsPath)
 
 bool CGUIWindow::LoadXML(const CStdString &strPath, const CStdString &strLowerPath)
 {
-  TiXmlDocument xmlDoc;
+  CXBMCTinyXML xmlDoc;
   if ( !xmlDoc.LoadFile(strPath) && !xmlDoc.LoadFile(CStdString(strPath).ToLower()) && !xmlDoc.LoadFile(strLowerPath))
   {
     CLog::Log(LOGERROR, "unable to load:%s, Line %d\n%s", strPath.c_str(), xmlDoc.ErrorRow(), xmlDoc.ErrorDesc());
@@ -125,7 +125,7 @@ bool CGUIWindow::LoadXML(const CStdString &strPath, const CStdString &strLowerPa
   return Load(xmlDoc);
 }
 
-bool CGUIWindow::Load(TiXmlDocument &xmlDoc)
+bool CGUIWindow::Load(CXBMCTinyXML &xmlDoc)
 {
   TiXmlElement* pRootElement = xmlDoc.RootElement();
   if (strcmpi(pRootElement->Value(), "window"))
@@ -530,6 +530,21 @@ bool CGUIWindow::OnMessage(CGUIMessage& message)
         clickEvent.Fire(message);
       }
       break;
+    }
+  
+  case GUI_MSG_UNFOCUS_ALL:
+    {
+      //unfocus the current focused control in this window
+      CGUIControl *control = GetFocusedControl();
+      if(control)
+      {
+        //tell focused control that it has lost the focus
+        CGUIMessage msgLostFocus(GUI_MSG_LOSTFOCUS, GetID(), control->GetID(), control->GetID());
+        control->OnMessage(msgLostFocus);
+        CLog::Log(LOGDEBUG, "Unfocus WindowID: %i, ControlID: %i",GetID(), control->GetID());
+      }
+      return true;
+    break;
     }
 
   case GUI_MSG_SELCHANGED:

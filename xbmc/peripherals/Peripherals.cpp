@@ -35,13 +35,16 @@
 #include "utils/log.h"
 #include "utils/XMLUtils.h"
 #include "settings/GUISettings.h"
-#include "tinyXML/tinyxml.h"
+#include "utils/XBMCTinyXML.h"
 #include "filesystem/Directory.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/LocalizeStrings.h"
 #include "dialogs/GUIDialogKaiToast.h"
 #include "utils/StringUtils.h"
+<<<<<<< HEAD
 #include "Util.h"
+=======
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
 #include "guilib/Key.h"
 
 using namespace PERIPHERALS;
@@ -390,7 +393,7 @@ void CPeripherals::GetSettingsFromMapping(CPeripheral &peripheral) const
 
 bool CPeripherals::LoadMappings(void)
 {
-  TiXmlDocument xmlDoc;
+  CXBMCTinyXML xmlDoc;
   if (!xmlDoc.LoadFile("special://xbmc/system/peripherals.xml"))
   {
     CLog::Log(LOGWARNING, "%s - peripherals.xml does not exist", __FUNCTION__);
@@ -507,6 +510,7 @@ void CPeripherals::GetSettingsFromMappingsFile(TiXmlElement *xmlNode, map<CStdSt
       setting = new CSettingString(0, strKey, iLabelId, strValue, EDIT_CONTROL_INPUT, !bConfigurable, -1);
     }
 
+<<<<<<< HEAD
     if (setting)
     {
       //TODO add more types if needed
@@ -527,6 +531,25 @@ void CPeripherals::GetSettingsFromMappingsFile(TiXmlElement *xmlNode, map<CStdSt
       /* and add this new setting */
       m_settings[strKey] = setting;
     }
+=======
+    //TODO add more types if needed
+
+    /* set the visibility */
+    setting->SetVisible(bConfigurable);
+
+    /* set the order */
+    int iOrder(0);
+    currentNode->Attribute("order", &iOrder);
+    /* if the order attribute is invalid or 0, then the setting will be added at the end */
+    if (iOrder < 0)
+      iOrder = 0;
+    setting->SetOrder(iOrder);
+    if (iOrder > iMaxOrder)
+      iMaxOrder = iOrder;
+
+    /* and add this new setting */
+    m_settings[strKey] = setting;
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
 
     currentNode = currentNode->NextSiblingElement("setting");
   }

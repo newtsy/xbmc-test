@@ -184,7 +184,7 @@ void CAirPlayServer::StopServer(bool bWait)
   }
 }
 
-CAirPlayServer::CAirPlayServer(int port, bool nonlocal)
+CAirPlayServer::CAirPlayServer(int port, bool nonlocal) : CThread("AirPlayServer")
 {
   m_port = port;
   m_nonlocal = nonlocal;
@@ -688,7 +688,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
   else if (uri == "/volume")
   {
       const char* found = strstr(queryString.c_str(), "volume=");
-      double volume = found ? (double)(atof(found + strlen("volume="))) : 0;
+      float volume = found ? (float)strtod(found + strlen("volume="), NULL) : 0;
 
       CLog::Log(LOGDEBUG, "AIRPLAY: got request %s with volume %f", uri.c_str(), volume);
 
@@ -821,13 +821,6 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
       {
         float position = ((float) g_application.m_pPlayer->GetTime()) / 1000;
         responseBody.Format("duration: %d\r\nposition: %f", g_application.m_pPlayer->GetTotalTime(), position);
-
-        //unpause media on GET scrub when paused
-        if (g_application.m_pPlayer->IsPlaying() && g_application.m_pPlayer->IsPaused())
-        {
-          g_application.getApplicationMessenger().MediaPause();
-          ComposeReverseEvent(reverseHeader, reverseBody, sessionId, EVENT_PLAYING);
-        }
       }
       else 
       {
@@ -840,7 +833,7 @@ int CAirPlayServer::CTCPClient::ProcessRequest( CStdString& responseHeader,
       
       if (found && g_application.m_pPlayer)
       {
-        __int64 position = (__int64) (atof(found + strlen("position=")) * 1000.0);
+        int64_t position = (int64_t) (atof(found + strlen("position=")) * 1000.0);
         g_application.m_pPlayer->SeekTime(position);
         CLog::Log(LOGDEBUG, "AIRPLAY: got POST request %s with pos %"PRId64, uri.c_str(), position);
       }

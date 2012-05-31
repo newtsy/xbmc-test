@@ -21,9 +21,14 @@
 
 #include "DVDInputStreamTV.h"
 #include "filesystem/MythFile.h"
+<<<<<<< HEAD
 #include "filesystem/Slingbox.h"
 #include "filesystem/VTPFile.h"
 #include "pvr/channels/PVRChannel.h"
+=======
+#include "filesystem/VTPFile.h"
+#include "filesystem/SlingboxFile.h"
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
 #include "URL.h"
 
 using namespace XFILE;
@@ -108,10 +113,10 @@ int CDVDInputStreamTV::Read(BYTE* buf, int buf_size)
   return (int)(ret & 0xFFFFFFFF);
 }
 
-__int64 CDVDInputStreamTV::Seek(__int64 offset, int whence)
+int64_t CDVDInputStreamTV::Seek(int64_t offset, int whence)
 {
   if(!m_pFile) return -1;
-  __int64 ret = m_pFile->Seek(offset, whence);
+  int64_t ret = m_pFile->Seek(offset, whence);
 
   /* if we succeed, we are not eof anymore */
   if( ret >= 0 ) m_eof = false;
@@ -119,7 +124,7 @@ __int64 CDVDInputStreamTV::Seek(__int64 offset, int whence)
   return ret;
 }
 
-__int64 CDVDInputStreamTV::GetLength()
+int64_t CDVDInputStreamTV::GetLength()
 {
   if (!m_pFile) return 0;
   return m_pFile->GetLength();
@@ -168,15 +173,15 @@ bool CDVDInputStreamTV::SeekTime(int iTimeInMsec)
   return false;
 }
 
-bool CDVDInputStreamTV::NextStream()
+CDVDInputStream::ENextStream CDVDInputStreamTV::NextStream()
 {
-  if(!m_pFile) return false;
+  if(!m_pFile) return NEXTSTREAM_NONE;
   if(m_pFile->SkipNext())
   {
     m_eof = false;
-    return true;
+    return NEXTSTREAM_OPEN;
   }
-  return false;
+  return NEXTSTREAM_NONE;
 }
 
 bool CDVDInputStreamTV::CanRecord()

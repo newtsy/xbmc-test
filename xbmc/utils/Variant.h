@@ -24,6 +24,10 @@
 #include <string>
 #include <stdint.h>
 
+int64_t str2int64(const std::string &str, int64_t fallback = 0);
+uint64_t str2uint64(const std::string &str, uint64_t fallback = 0);
+double str2double(const std::string &str, double fallback = 0.0);
+
 class CVariant
 {
 public:
@@ -51,6 +55,7 @@ public:
   CVariant(const char *str);
   CVariant(const char *str, unsigned int length);
   CVariant(const std::string &str);
+  CVariant(const std::vector<std::string> &strArray);
   CVariant(const CVariant &variant);
 
   bool isInteger() const;
@@ -115,6 +120,8 @@ public:
 
   bool isMember(const std::string &key) const;
 
+  static CVariant ConstNullVariant;
+
 private:
   union VariantUnion
   {
@@ -129,6 +136,4 @@ private:
   std::string m_string;
   VariantArray m_array;
   VariantMap m_map;
-
-  static CVariant ConstNullVariant;
 };

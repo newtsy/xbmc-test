@@ -133,7 +133,11 @@ namespace PERIPHERALS
      * @return The value or an empty string if it wasn't found.
      */
     virtual const CStdString GetSettingString(const CStdString &strKey) const;
+<<<<<<< HEAD
     virtual bool SetSetting(const CStdString &strKey, const CStdString &strValue);
+=======
+    virtual void SetSetting(const CStdString &strKey, const CStdString &strValue);
+>>>>>>> 1495cbeb771bb5dde20a83a50d23c89a50e6f5c1
     virtual void SetSettingVisible(const CStdString &strKey, bool bSetTo);
     virtual bool IsSettingVisible(const CStdString &strKey) const;
 
